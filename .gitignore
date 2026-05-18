@@ -1,0 +1,9 @@
+node_modules/
+dist/
+
+# Ignore collection/environment/report data but keep folders
+collections/*.json
+environments/*.json
+reports/*.html
+reports/*.json
+!.gitkeep

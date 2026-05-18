@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Newman Runner</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-body: #0f0f0f;
+      --bg-sidebar: #1a1a1a;
+      --bg-sidebar-hover: rgba(255,255,255,0.06);
+      --bg-sidebar-active: rgba(255,108,55,0.15);
+      --bg-card: #1a1a1a;
+      --bg-input: #111111;
+      --border: #2a2a2a;
+      --border-dark: #333333;
+      --text-primary: #f0f0f0;
+      --text-secondary: #a0a0a0;
+      --text-muted: #666666;
+      --text-sidebar: rgba(255,255,255,0.7);
+      --text-sidebar-active: #ffffff;
+      --orange: #ff6c37;
+      --orange-hover: #e85d2f;
+      --orange-light: rgba(255,108,55,0.08);
+      --orange-border: rgba(255,108,55,0.25);
+      --green: #12b76a;
+      --green-bg: rgba(18,183,106,0.1);
+      --red: #f04438;
+      --red-bg: rgba(240,68,56,0.1);
+      --yellow: #f79009;
+      --yellow-bg: rgba(247,144,9,0.1);
+      --blue: #2e6ff2;
+      --purple: #7c3aed;
+      --radius: 10px;
+      --radius-sm: 6px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.3);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-body);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ========== SIDEBAR ========== */
+    .sidebar {
+      width: 250px;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 100;
+    }
+    .sidebar-brand {
+      padding: 20px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .brand-icon {
+      width: 34px; height: 34px;
+      background: var(--orange);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; color: #fff; font-weight: 700;
+    }
+    .brand-text h1 { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); }
+    .brand-text p { font-size: 0.65rem; color: var(--text-muted); margin-top: 1px; }
+
+    .sidebar-nav { flex: 1; padding: 10px 10px; }
+    .nav-section { font-size: 0.62rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; padding: 14px 10px 6px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px; margin-bottom: 2px;
+      color: var(--text-sidebar); cursor: pointer;
+      border-radius: var(--radius-sm); transition: all 0.12s;
+      font-size: 0.83rem; font-weight: 500;
+    }
+    .nav-item:hover { background: var(--bg-sidebar-hover); color: var(--text-primary); }
+    .nav-item.active { background: var(--bg-sidebar-active); color: var(--orange); font-weight: 600; }
+    .nav-icon { width: 20px; text-align: center; font-size: 0.95rem; }
+
+    .sidebar-footer {
+      padding: 16px 18px;
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .tj-avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--orange);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.8rem; color: #fff;
+    }
+    .tj-meta { font-size: 0.72rem; line-height: 1.3; }
+    .tj-meta strong { color: var(--text-primary); font-weight: 600; display: block; }
+    .tj-meta span { color: var(--text-muted); }
+
+    /* ========== MAIN ========== */
+    .main { margin-left: 250px; flex: 1; min-height: 100vh; }
+    .main-header {
+      padding: 18px 28px;
+      background: var(--bg-sidebar);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .main-header h2 { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+    .main-header p { font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
+    .status-pill {
+      padding: 5px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 600;
+      background: var(--green-bg); color: var(--green);
+    }
+
+    .main-content { padding: 24px 28px; max-width: 1050px; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ========== CARDS ========== */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      margin-bottom: 18px;
+      box-shadow: var(--shadow);
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700; color: var(--orange);
+      margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.3px;
+      padding-bottom: 10px; border-bottom: 1px solid var(--border);
+    }
+
+    /* ========== FORM ========== */
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; margin-bottom: 5px; color: var(--text-secondary); font-size: 0.76rem; font-weight: 600; }
+    .form-group select,
+    .form-group input[type="number"],
+    .form-group input[type="text"] {
+      width: 100%; padding: 9px 12px;
+      background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-primary);
+      font-size: 0.84rem; font-family: inherit; transition: all 0.15s;
+    }
+    .form-group select:focus, .form-group input:focus {
+      outline: none; border-color: var(--orange);
+      box-shadow: 0 0 0 3px rgba(255,108,55,0.1);
+    }
+
+    .btn {
+      padding: 9px 18px; border: none; border-radius: var(--radius-sm);
+      cursor: pointer; font-size: 0.82rem; font-weight: 600;
+      font-family: inherit; transition: all 0.15s;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-primary { background: var(--orange); color: #fff; }
+    .btn-primary:hover { background: var(--orange-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255,108,55,0.25); }
+    .btn-primary:disabled { background: #ccc; color: #888; transform: none; box-shadow: none; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--orange); color: var(--orange); }
+    .btn-sm { padding: 5px 10px; font-size: 0.72rem; }
+    .btn-danger { background: transparent; color: var(--red); border: 1px solid rgba(240,68,56,0.2); }
+    .btn-danger:hover { background: var(--red-bg); }
+
+    .inline-row { display: flex; gap: 14px; }
+    .inline-row .form-group { flex: 1; }
+
+    /* ========== UPLOAD ========== */
+    .upload-area {
+      border: 2px dashed var(--border); border-radius: var(--radius);
+      padding: 28px; text-align: center; cursor: pointer; transition: all 0.2s;
+      background: var(--bg-input);
+    }
+    .upload-area:hover { border-color: var(--orange); background: var(--orange-light); }
+    .upload-area input { display: none; }
+    .upload-area .icon { font-size: 1.8rem; margin-bottom: 6px; }
+    .upload-area p { color: var(--text-muted); font-size: 0.78rem; }
+
+    /* ========== TREE ========== */
+    .tree-container {
+      max-height: 300px; overflow-y: auto;
+      background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 8px;
+    }
+    .tree-container::-webkit-scrollbar { width: 4px; }
+    .tree-container::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+    .tree-node-content {
+      display: flex; align-items: center; padding: 5px 8px;
+      border-radius: 4px; cursor: pointer; gap: 7px; font-size: 0.8rem;
+    }
+    .tree-node-content:hover { background: rgba(255,108,55,0.06); }
+    .tree-node-content.selected { background: var(--orange-light); outline: 1px solid var(--orange-border); }
+    .tree-toggle { width: 14px; font-size: 0.55rem; color: var(--text-muted); transition: transform 0.15s; flex-shrink: 0; }
+    .tree-toggle.open { transform: rotate(90deg); }
+    .tree-toggle.hidden { visibility: hidden; }
+    .tree-icon { flex-shrink: 0; font-size: 0.82rem; }
+    .tree-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary); font-size: 0.8rem; }
+    .tree-method { font-size: 0.58rem; font-weight: 700; padding: 2px 5px; border-radius: 3px; flex-shrink: 0; }
+    .tree-method.GET { color: var(--green); background: var(--green-bg); }
+    .tree-method.POST { color: var(--yellow); background: var(--yellow-bg); }
+    .tree-method.PUT { color: var(--blue); background: rgba(46,111,242,0.1); }
+    .tree-method.DELETE { color: var(--red); background: var(--red-bg); }
+    .tree-method.PATCH { color: var(--purple); background: rgba(124,58,237,0.1); }
+    .tree-children { padding-left: 16px; }
+    .tree-children.collapsed { display: none; }
+    .selection-bar {
+      margin-top: 8px; padding: 8px 12px;
+      background: var(--green-bg); border: 1px solid #a6f4c5;
+      border-radius: var(--radius-sm); color: var(--green); font-size: 0.76rem;
+      display: none; align-items: center; justify-content: space-between;
+    }
+    .selection-bar.visible { display: flex; }
+    .search-input {
+      width: 100%; padding: 8px 12px;
+      background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-primary);
+      font-size: 0.8rem; margin-bottom: 8px; font-family: inherit;
+    }
+    .search-input:focus { outline: none; border-color: var(--orange); }
+
+    /* ========== TABLE ========== */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th, .data-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.8rem; }
+    .data-table th { color: var(--text-muted); font-weight: 600; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.5px; background: var(--bg-input); }
+    .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .badge { padding: 3px 8px; border-radius: 20px; font-size: 0.68rem; font-weight: 600; }
+    .badge-passed { background: var(--green-bg); color: var(--green); }
+    .badge-failed { background: var(--red-bg); color: var(--red); }
+    .badge-running { background: var(--yellow-bg); color: var(--yellow); }
+    .badge-error { background: var(--red-bg); color: var(--red); }
+    .report-link { color: var(--orange); text-decoration: none; font-size: 0.8rem; font-weight: 600; }
+    .report-link:hover { text-decoration: underline; }
+    .empty-state { text-align: center; padding: 40px; color: var(--text-muted); }
+    .empty-state .icon { font-size: 2.2rem; margin-bottom: 8px; }
+
+    /* ========== LOGS ========== */
+    .log-viewer {
+      background: #1e1e1e; border-radius: var(--radius-sm);
+      padding: 14px; font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.73rem; max-height: 450px; overflow-y: auto; line-height: 1.8;
+    }
+    .log-viewer::-webkit-scrollbar { width: 4px; }
+    .log-viewer::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+    .log-line { display: flex; gap: 10px; }
+    .log-time { color: #666; flex-shrink: 0; }
+    .log-msg { word-break: break-word; }
+    .log-msg.info { color: #aaa; }
+    .log-msg.request { color: #6cb6ff; }
+    .log-msg.response { color: #e3b341; }
+    .log-msg.pass { color: #56d364; }
+    .log-msg.fail { color: #f85149; }
+    .log-msg.error { color: #f85149; font-weight: 600; }
+
+    /* ========== STORED ========== */
+    .stored-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px; background: var(--bg-input);
+      border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 6px;
+    }
+    .stored-item .name { font-size: 0.8rem; color: var(--text-primary); }
+    .stored-item .actions { display: flex; gap: 6px; }
+
+    /* ========== TOAST ========== */
+    .toast-container { position: fixed; top: 16px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; max-width: 370px; }
+    .toast {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 18px;
+      box-shadow: var(--shadow-md);
+      display: flex; align-items: flex-start; gap: 10px;
+      animation: slideIn 0.3s ease; position: relative;
+    }
+    .toast.passed { border-left: 4px solid var(--green); }
+    .toast.failed { border-left: 4px solid var(--red); }
+    .toast.error { border-left: 4px solid var(--red); }
+    .toast-icon { font-size: 1.2rem; flex-shrink: 0; }
+    .toast-body { flex: 1; }
+    .toast-title { font-size: 0.82rem; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
+    .toast-msg { font-size: 0.73rem; color: var(--text-secondary); }
+    .toast-actions { margin-top: 8px; display: flex; gap: 6px; }
+    .toast-close { position: absolute; top: 8px; right: 10px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem; }
+    .toast-close:hover { color: var(--text-primary); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+    .toast.removing { animation: slideOut 0.3s ease forwards; }
+  </style>
+</head>
+<body>
+  <div class="toast-container" id="toastContainer"></div>
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">N</div>
+      <div class="brand-text"><h1>Newman Runner</h1><p>API Test Automation</p></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item active" data-tab="run"><span class="nav-icon">&#9654;</span> Run Collection</div>
+      <div class="nav-item" data-tab="upload"><span class="nav-icon">&#128228;</span> Upload Files</div>
+      <div class="nav-section">Results</div>
+      <div class="nav-item" data-tab="logs"><span class="nav-icon">&#128220;</span> Logs</div>
+      <div class="nav-item" data-tab="history"><span class="nav-icon">&#128337;</span> History</div>
+      <div class="nav-item" data-tab="reports"><span class="nav-icon">&#128202;</span> Reports</div>
+      <div class="nav-section">Automation</div>
+      <div class="nav-item" data-tab="scheduler"><span class="nav-icon">&#9200;</span> Scheduler</div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="tj-avatar">TJ</div>
+      <div class="tj-meta"><strong>TJ</strong><span>Newman Runner v1.0</span></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="main-header">
+      <div><h2 id="pageTitle">Run Collection</h2><p id="pageDesc">Select a collection and configure your test run</p></div>
+      <div class="status-pill" id="statusBadge">&#9679; Ready</div>
+    </div>
+    <div class="main-content">
+
+      <!-- RUN PANEL -->
+      <div class="panel active" id="panel-run">
+        <div class="card" style="background:var(--orange-light);border-color:var(--orange-border);padding:0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.toggle-icon').textContent=this.nextElementSibling.style.display==='none'?'+':'-'">
+            <span style="font-size:0.82rem;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:8px;">&#128161; How it works</span>
+            <span class="toggle-icon" style="font-size:1.1rem;color:var(--orange);font-weight:700;">+</span>
+          </div>
+          <div style="padding:0 18px 14px;font-size:0.8rem;color:var(--text-secondary);line-height:1.6;display:none;">
+            Select a collection → optionally pick a specific folder to run → set your target environment → click Run. Reports (HTML + JSON) are generated automatically and available in the Reports tab. You'll get a notification when the run completes.
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Collection & Target</div>
+          <div class="form-group"><label>Collection</label><select id="collectionSelect"><option value="">-- Select a collection --</option></select></div>
+          <div id="treeSection" style="display:none;">
+            <div class="form-group">
+              <label>Browse Folders & Requests <span style="font-weight:400;color:var(--text-muted);">— click a folder to run only that part, or leave empty to run all</span></label>
+              <input type="text" class="search-input" id="treeSearch" placeholder="Type to search...">
+              <div class="tree-container" id="treeContainer"><div class="empty-state" style="padding:20px;">Select a collection</div></div>
+              <div class="selection-bar" id="selectionInfo"><span id="selectionText"></span><button class="btn btn-sm btn-ghost" id="clearSelection">Clear</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Configuration</div>
+          <div class="form-group"><label>Target Environment <span style="font-weight:400;color:var(--text-muted);">— value used in collection pre-script (e.g. Dev, Preprod, Sprint)</span></label><input type="text" id="targetEnvSelect" placeholder="Enter your environment name as defined in pre-script"></div>
+          <div class="form-group" id="sprintNumberGroup" style="display:none;"><label>Sprint Number</label><input type="text" id="sprintNumber" placeholder="e.g. 109"></div>
+          <div class="form-group"><label>Environment File</label><select id="environmentSelect"><option value="">-- None --</option></select></div>
+          <div class="form-group"><label>Custom Variables</label><div id="customVarsContainer"></div><button class="btn btn-sm btn-ghost" id="addVarBtn" style="margin-top:6px;">+ Add Variable</button></div>
+          <div class="form-group"><label>Report Name</label><input type="text" id="reportTitle" placeholder="e.g. Login-Tests-Report"></div>
+          <div class="inline-row"><div class="form-group"><label>Iterations</label><input type="number" id="iterationCount" value="1" min="1"></div><div class="form-group"><label>Delay (ms)</label><input type="number" id="delayRequest" value="0" min="0"></div></div>
+        </div>
+        <button class="btn btn-primary" id="runBtn">&#9654; Run Now</button>
+        <span id="runStatus" style="margin-left:14px;color:var(--text-muted);font-size:0.8rem;"></span>
+      </div>
+
+      <!-- UPLOAD PANEL -->
+      <div class="panel" id="panel-upload">
+        <div class="inline-row" style="align-items:stretch;">
+          <div class="card" style="flex:1;"><div class="card-title">Collection</div><div class="upload-area" id="collectionUpload"><div class="icon">&#128196;</div><p>Drop or click to upload collection JSON</p><input type="file" accept=".json" id="collectionFile"></div><div id="collectionUploadStatus"></div></div>
+          <div class="card" style="flex:1;"><div class="card-title">Environment</div><div class="upload-area" id="environmentUpload"><div class="icon">&#127760;</div><p>Drop or click to upload environment JSON</p><input type="file" accept=".json" id="environmentFile"></div><div id="environmentUploadStatus"></div></div>
+        </div>
+        <div class="card"><div class="card-title">Stored Collections</div><p style="color:var(--text-muted);font-size:0.76rem;margin-bottom:10px;">Remembered across sessions.</p><div id="storedCollectionsList"></div></div>
+      </div>
+
+      <!-- LOGS PANEL -->
+      <div class="panel" id="panel-logs">
+        <div class="card">
+          <div class="card-title">Execution Logs</div>
+          <div class="form-group"><label>Select Run</label><select id="logRunSelect"><option value="">-- Select a run --</option></select></div>
+          <button class="btn btn-sm btn-ghost" id="refreshLogs" style="margin-bottom:12px;">&#8635; Refresh</button>
+          <div class="log-viewer" id="logViewer"><div class="empty-state" style="padding:30px;color:#888;">Select a run to view logs</div></div>
+        </div>
+      </div>
+
+      <!-- HISTORY PANEL -->
+      <div class="panel" id="panel-history"><div class="card"><div class="card-title">Run History</div><div id="historyContent"><div class="empty-state"><div class="icon">&#128337;</div><p>No runs yet</p></div></div></div></div>
+
+      <!-- REPORTS PANEL -->
+      <div class="panel" id="panel-reports"><div class="card"><div class="card-title">Generated Reports</div><div id="reportsContent"><div class="empty-state"><div class="icon">&#128202;</div><p>No reports yet</p></div></div></div></div>
+
+      <!-- SCHEDULER PANEL -->
+      <div class="panel" id="panel-scheduler">
+        <div class="card" style="background:var(--orange-light);border-color:var(--orange-border);padding:0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.toggle-icon').textContent=this.nextElementSibling.style.display==='none'?'+':'-'">
+            <span style="font-size:0.82rem;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:8px;">&#9200; How Scheduler works</span>
+            <span class="toggle-icon" style="font-size:1.1rem;color:var(--orange);font-weight:700;">+</span>
+          </div>
+          <div style="padding:0 18px 14px;font-size:0.8rem;color:var(--text-secondary);line-height:1.7;display:none;">
+            &#8226; <strong>Select a collection</strong> and check the folders you want to automate.<br>
+            &#8226; <strong>Set a time</strong> — the job will trigger at that exact date/time.<br>
+            &#8226; <strong>Schedule type:</strong> "Once" runs one time only. "Daily" repeats every day at the same time. "Hourly" and "Every 30 Min" repeat continuously.<br>
+            &#8226; <strong>Multiple folders:</strong> If you select 5 folders, all 5 will run sequentially at the scheduled time.<br>
+            &#8226; <strong>Reports:</strong> Each folder generates its own HTML + JSON report with your job name.<br>
+            &#8226; <strong>Requirement:</strong> The app must be running for scheduled jobs to execute. If the app is closed, jobs will not run until you reopen it.<br>
+            &#8226; <strong>Tip:</strong> Add the app to Windows Startup so it's always running when your PC is on.
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Create Scheduled Run</div>
+          <div class="form-group"><label>Job Name</label><input type="text" id="schedName" placeholder="e.g. Nightly Regression"></div>
+          <div class="form-group"><label>Collection</label><select id="schedCollection"><option value="">-- Select --</option></select></div>
+          <div class="form-group" id="schedFoldersGroup" style="display:none;">
+            <label>Select Folders to Run (check the folders you want)</label>
+            <input type="text" class="search-input" id="schedTreeSearch" placeholder="Search folders...">
+            <div class="tree-container" id="schedTreeContainer" style="max-height:250px;"></div>
+            <div style="margin-top:8px;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.78rem;color:var(--text-secondary);" id="schedSelectedFolders">No folders selected — will run entire collection</div>
+          </div>
+          <div class="form-group"><label>Target Environment</label><input type="text" id="schedEnv" placeholder="Enter your environment name as defined in pre-script"></div>
+          <div class="form-group"><label>Environment File</label><select id="schedEnvFile"><option value="">-- None --</option></select></div>
+          <div class="inline-row">
+            <div class="form-group"><label>Schedule Type</label><select id="schedType"><option value="once">Once</option><option value="daily">Daily</option><option value="hourly">Every Hour</option><option value="every30min">Every 30 Min</option></select></div>
+            <div class="form-group"><label>Run At (Date & Time)</label><input type="datetime-local" id="schedTime" style="width:100%;padding:9px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.84rem;font-family:inherit;"></div>
+          </div>
+          <br>
+          <button class="btn btn-primary" id="schedCreateBtn">&#9200; Schedule Job</button>
+          <span id="schedStatus" style="margin-left:14px;color:var(--text-muted);font-size:0.8rem;"></span>
+        </div>
+        <div class="card">
+          <div class="card-title">Scheduled Jobs</div>
+          <div id="schedJobsList"><div class="empty-state"><div class="icon">&#9200;</div><p>No scheduled jobs</p></div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let selectedFolder='',treeData=null;
+    const pageTitles={run:['Run Collection','Select a collection and configure your test run'],upload:['Upload Files','Upload Postman collections and environments'],logs:['Logs','View real-time execution logs'],history:['Run History','View past test run results'],reports:['Reports','Browse and download HTML reports'],scheduler:['Scheduler','Automate collection runs on a schedule']};
+
+    function getStoredCollections(){try{return JSON.parse(localStorage.getItem('newman_collections')||'[]')}catch{return[]}}
+    function addStoredCollection(f){const s=getStoredCollections();if(!s.includes(f)){s.push(f);localStorage.setItem('newman_collections',JSON.stringify(s))}renderStoredCollections()}
+    function removeStoredCollection(f){localStorage.setItem('newman_collections',JSON.stringify(getStoredCollections().filter(x=>x!==f)));renderStoredCollections()}
+    function renderStoredCollections(){const c=document.getElementById('storedCollectionsList'),s=getStoredCollections();if(!s.length){c.innerHTML='<div style="color:var(--text-muted);font-size:0.8rem;">No stored collections.</div>';return}c.innerHTML=s.map(n=>`<div class="stored-item"><span class="name">&#128196; ${n}</span><span class="actions"><button class="btn btn-sm btn-ghost" onclick="useStoredCollection('${n.replace(/'/g,"\\'")}')">Use</button><button class="btn btn-sm btn-danger" onclick="removeStoredCollection('${n.replace(/'/g,"\\'")}')">&#10005;</button></span></div>`).join('')}
+    function useStoredCollection(n){switchTab('run');loadDropdowns().then(()=>{document.getElementById('collectionSelect').value=n;document.getElementById('collectionSelect').dispatchEvent(new Event('change'))})}
+
+    function switchTab(t){document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelector(`[data-tab="${t}"]`).classList.add('active');document.getElementById(`panel-${t}`).classList.add('active');document.getElementById('pageTitle').textContent=pageTitles[t][0];document.getElementById('pageDesc').textContent=pageTitles[t][1]}
+    document.querySelectorAll('.nav-item').forEach(item=>{item.addEventListener('click',()=>{const t=item.dataset.tab;switchTab(t);if(t==='history')loadHistory();if(t==='reports')loadReports();if(t==='run')loadDropdowns();if(t==='upload')renderStoredCollections();if(t==='logs')loadLogRuns();if(t==='scheduler')loadScheduler()})});
+
+    async function loadDropdowns(){const[cols,envs]=await Promise.all([fetch('/api/collections').then(r=>r.json()),fetch('/api/environments').then(r=>r.json())]);const cs=document.getElementById('collectionSelect'),es=document.getElementById('environmentSelect');cs.innerHTML='<option value="">-- Select a collection --</option>';cols.forEach(c=>{cs.innerHTML+=`<option value="${c}">${c}</option>`;addStoredCollection(c)});es.innerHTML='<option value="">-- None --</option>';envs.forEach(e=>{es.innerHTML+=`<option value="${e}">${e}</option>`})}
+
+    document.getElementById('collectionSelect').addEventListener('change',async function(){const col=this.value,ts=document.getElementById('treeSection');selectedFolder='';updateSelectionInfo();if(!col){ts.style.display='none';treeData=null;return}ts.style.display='block';document.getElementById('treeContainer').innerHTML='<div class="empty-state" style="padding:20px;">Loading...</div>';try{const r=await fetch(`/api/collection-tree/${encodeURIComponent(col)}`);const d=await r.json();treeData=d.tree;renderTree(treeData)}catch{document.getElementById('treeContainer').innerHTML='<div class="empty-state" style="color:var(--red);">Failed to load</div>'}});
+
+    function renderTree(nodes,container){const target=container||document.getElementById('treeContainer');if(!container)target.innerHTML='';if(!nodes||!nodes.length){target.innerHTML='<div class="empty-state" style="padding:20px;">Empty</div>';return}nodes.forEach(node=>{const el=document.createElement('div');el.className='tree-node';const ct=document.createElement('div');ct.className='tree-node-content';if(selectedFolder===node.name)ct.classList.add('selected');const tg=document.createElement('span');tg.className='tree-toggle'+(node.type==='folder'?'':' hidden');tg.textContent='\u25B6';ct.appendChild(tg);const ic=document.createElement('span');ic.className='tree-icon';ic.textContent=node.type==='folder'?'\uD83D\uDCC1':'\uD83D\uDCC4';ct.appendChild(ic);if(node.type==='request'&&node.method){const m=document.createElement('span');m.className='tree-method '+node.method;m.textContent=node.method;ct.appendChild(m)}const lb=document.createElement('span');lb.className='tree-label';lb.textContent=node.name;lb.title=node.path||node.name;ct.appendChild(lb);el.appendChild(ct);if(node.type==='folder'&&node.children&&node.children.length){const ch=document.createElement('div');ch.className='tree-children collapsed';renderTree(node.children,ch);el.appendChild(ch);tg.addEventListener('click',e=>{e.stopPropagation();ch.classList.toggle('collapsed');tg.classList.toggle('open')})}ct.addEventListener('click',()=>{if(node.type==='folder'){document.querySelectorAll('.tree-node-content.selected').forEach(x=>x.classList.remove('selected'));ct.classList.add('selected');selectedFolder=node.name;updateSelectionInfo()}});target.appendChild(el)})}
+    function updateSelectionInfo(){const i=document.getElementById('selectionInfo'),t=document.getElementById('selectionText');if(selectedFolder){i.classList.add('visible');t.textContent='Running folder: '+selectedFolder}else{i.classList.remove('visible');t.textContent=''}}
+    document.getElementById('clearSelection').addEventListener('click',()=>{selectedFolder='';document.querySelectorAll('.tree-node-content.selected').forEach(x=>x.classList.remove('selected'));updateSelectionInfo()});
+    document.getElementById('treeSearch').addEventListener('input',function(){const q=this.value.toLowerCase().trim();if(!treeData)return;if(!q){renderTree(treeData);return}const f=filterTree(treeData,q),c=document.getElementById('treeContainer');c.innerHTML='';if(!f.length)c.innerHTML='<div class="empty-state" style="padding:20px;">No matches</div>';else{renderTree(f,c);c.querySelectorAll('.tree-children').forEach(x=>x.classList.remove('collapsed'));c.querySelectorAll('.tree-toggle').forEach(x=>x.classList.add('open'))}});
+    function filterTree(nodes,q){const r=[];nodes.forEach(n=>{const m=n.name.toLowerCase().includes(q);if(n.type==='folder'&&n.children){const fc=filterTree(n.children,q);if(m||fc.length)r.push({...n,children:m?n.children:fc})}else{if(m)r.push(n)}});return r}
+
+    document.getElementById('targetEnvSelect').addEventListener('input',function(){document.getElementById('sprintNumberGroup').style.display=this.value.toLowerCase()==='sprint'?'block':'none'});
+    document.getElementById('addVarBtn').addEventListener('click',()=>{const c=document.getElementById('customVarsContainer'),row=document.createElement('div');row.style.cssText='display:flex;gap:8px;margin-bottom:8px;align-items:center;';row.innerHTML=`<input type="text" placeholder="Key" style="flex:1;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:0.8rem;font-family:inherit;"><input type="text" placeholder="Value" style="flex:1;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:0.8rem;font-family:inherit;"><button class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">&#10005;</button>`;c.appendChild(row)});
+    function getCustomVars(){const rows=document.querySelectorAll('#customVarsContainer > div'),v=[];rows.forEach(r=>{const i=r.querySelectorAll('input');if(i[0].value.trim())v.push({key:i[0].value.trim(),value:i[1].value})});return v}
+
+    document.getElementById('runBtn').addEventListener('click',async()=>{const col=document.getElementById('collectionSelect').value;if(!col){alert('Select a collection');return}const te=document.getElementById('targetEnvSelect').value.trim(),sn=document.getElementById('sprintNumber').value;const body={collection:col,environment:document.getElementById('environmentSelect').value,iterationCount:document.getElementById('iterationCount').value,delayRequest:document.getElementById('delayRequest').value,folder:selectedFolder||'',reportTitle:document.getElementById('reportTitle').value,targetEnv:te||'',sprintNumber:(te.toLowerCase()==='sprint'&&sn)?sn:'',customVars:getCustomVars()};document.getElementById('runBtn').disabled=true;document.getElementById('runStatus').textContent='Running...';document.getElementById('statusBadge').textContent='\u25CF Running';document.getElementById('statusBadge').style.background='var(--yellow-bg)';document.getElementById('statusBadge').style.color='var(--yellow)';try{await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});document.getElementById('runStatus').textContent='Started! Check Logs or History.'}catch{document.getElementById('runStatus').textContent='Error.'}document.getElementById('runBtn').disabled=false});
+
+    function setupUpload(aId,iId,ep,sId){const a=document.getElementById(aId),i=document.getElementById(iId);a.addEventListener('click',()=>i.click());a.addEventListener('dragover',e=>{e.preventDefault();a.style.borderColor='var(--orange)'});a.addEventListener('dragleave',()=>{a.style.borderColor='var(--border)'});a.addEventListener('drop',e=>{e.preventDefault();a.style.borderColor='var(--border)';if(e.dataTransfer.files.length)uploadFile(e.dataTransfer.files[0],ep,sId)});i.addEventListener('change',()=>{if(i.files.length)uploadFile(i.files[0],ep,sId)})}
+    async function uploadFile(file,ep,sId){const fd=new FormData();fd.append(ep.includes('collection')?'collection':'environment',file);const r=await fetch(ep,{method:'POST',body:fd}),d=await r.json();document.getElementById(sId).innerHTML=`<p style="color:var(--green);margin-top:8px;font-size:0.8rem;">&#10003; ${d.filename}</p>`;if(ep.includes('collection'))addStoredCollection(d.filename);loadDropdowns()}
+    setupUpload('collectionUpload','collectionFile','/api/upload/collection','collectionUploadStatus');
+    setupUpload('environmentUpload','environmentFile','/api/upload/environment','environmentUploadStatus');
+
+    async function loadLogRuns(){const runs=await fetch('/api/logs').then(r=>r.json());const s=document.getElementById('logRunSelect');s.innerHTML='<option value="">-- Select a run --</option>';runs.forEach(r=>{const t=new Date(r.startTime).toLocaleString();s.innerHTML+=`<option value="${r.id}">${r.collection}${r.folder!=='All'?' / '+r.folder:''} — ${t} [${r.status}]</option>`})}
+    document.getElementById('logRunSelect').addEventListener('change',loadSelectedLogs);
+    document.getElementById('refreshLogs').addEventListener('click',loadSelectedLogs);
+    async function loadSelectedLogs(){const id=document.getElementById('logRunSelect').value,v=document.getElementById('logViewer');if(!id){v.innerHTML='<div class="empty-state" style="padding:30px;color:#888;">Select a run</div>';return}const logs=await fetch(`/api/logs/${id}`).then(r=>r.json());if(!logs.length){v.innerHTML='<div class="empty-state" style="padding:30px;color:#888;">No logs yet</div>';return}v.innerHTML=logs.map(l=>`<div class="log-line"><span class="log-time">${new Date(l.time).toLocaleTimeString()}</span><span class="log-msg ${l.type}">${escapeHtml(l.message)}</span></div>`).join('');v.scrollTop=v.scrollHeight}
+    function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+    async function loadHistory(){const h=await fetch('/api/history').then(r=>r.json()),c=document.getElementById('historyContent');if(!h.length){c.innerHTML='<div class="empty-state"><div class="icon">&#128337;</div><p>No runs yet</p></div>';return}let html=`<table class="data-table"><tr><th>Collection</th><th>Folder</th><th>Env</th><th>Status</th><th>Requests</th><th>Assertions</th><th>Duration</th><th>Report</th></tr>`;h.forEach(r=>{const b=`<span class="badge badge-${r.status}">${r.status}</span>`+(r.automated?' <span class="badge badge-running" style="font-size:0.6rem;">AUTO</span>':''),rq=r.summary&&r.summary.totalRequests!=null?`${r.summary.totalRequests-(r.summary.failedRequests||0)}/${r.summary.totalRequests}`:'-',as=r.summary&&r.summary.totalAssertions!=null?`${r.summary.totalAssertions-(r.summary.failedAssertions||0)}/${r.summary.totalAssertions}`:'-',du=r.summary&&r.summary.totalDuration?`${(r.summary.totalDuration/1000).toFixed(1)}s`:'-',rp=r.reportName?`<a class="report-link" href="/reports/${r.reportName}" target="_blank">View</a>`:'-';html+=`<tr><td>${r.collection}</td><td>${r.folder||'All'}</td><td>${r.environment}</td><td>${b}</td><td>${rq}</td><td>${as}</td><td>${du}</td><td>${rp}</td></tr>`});html+='</table>';c.innerHTML=html}
+
+    async function loadReports(){const reps=await fetch('/api/reports').then(r=>r.json()),c=document.getElementById('reportsContent');if(!reps.length){c.innerHTML='<div class="empty-state"><div class="icon">&#128202;</div><p>No reports yet</p></div>';return}const htmlFiles=reps.filter(r=>r.endsWith('.html')),jsonFiles=reps.filter(r=>r.endsWith('.json'));let html='<div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;"><a class="btn btn-primary btn-sm" href="/api/reports/download-zip" style="text-decoration:none;">&#128230; Download All ZIP</a><span style="color:var(--text-muted);font-size:0.76rem;">'+reps.length+' file(s)</span></div>';if(htmlFiles.length){html+='<h4 style="font-size:0.76rem;color:var(--orange);margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.5px;">HTML Reports</h4><ul style="list-style:none;padding:0;">'+htmlFiles.map(r=>`<li style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;"><a class="report-link" href="/reports/${r}" target="_blank">&#128196; ${r}</a><div style="display:flex;gap:6px;"><a class="btn btn-sm btn-ghost" href="/reports/${r}" download style="text-decoration:none;">&#11015; HTML</a><a class="btn btn-sm btn-ghost" href="/api/reports/download-zip/${encodeURIComponent(r)}" style="text-decoration:none;">&#128230; ZIP</a></div></li>`).join('')+'</ul>'}if(jsonFiles.length){html+='<h4 style="font-size:0.76rem;color:var(--orange);margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.5px;">JSON Reports</h4><ul style="list-style:none;padding:0;">'+jsonFiles.map(r=>`<li style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;"><span style="color:var(--text-secondary);font-size:0.82rem;">&#128196; ${r}</span><div style="display:flex;gap:6px;"><a class="btn btn-sm btn-ghost" href="/reports/${r}" download style="text-decoration:none;">&#11015; JSON</a><a class="btn btn-sm btn-ghost" href="/api/reports/download-zip/${encodeURIComponent(r)}" style="text-decoration:none;">&#128230; ZIP</a></div></li>`).join('')+'</ul>'}c.innerHTML=html}
+
+    // ===== SCHEDULER =====
+    let schedTreeData=null, schedSelectedFolders=[];
+
+    document.getElementById('schedCollection').addEventListener('change', async function(){
+      const col=this.value, fg=document.getElementById('schedFoldersGroup'), tc=document.getElementById('schedTreeContainer');
+      schedSelectedFolders=[];
+      updateSchedFolderInfo();
+      if(!col){fg.style.display='none';schedTreeData=null;return}
+      fg.style.display='block';
+      tc.innerHTML='<div class="empty-state" style="padding:20px;">Loading...</div>';
+      try{const r=await fetch(`/api/collection-tree/${encodeURIComponent(col)}`);const d=await r.json();schedTreeData=d.tree;renderSchedTree(schedTreeData)}
+      catch{tc.innerHTML='<div class="empty-state" style="color:var(--red);">Failed to load</div>'}
+    });
+
+    function renderSchedTree(nodes,container){
+      const target=container||document.getElementById('schedTreeContainer');
+      if(!container)target.innerHTML='';
+      if(!nodes||!nodes.length){target.innerHTML='<div class="empty-state" style="padding:20px;">Empty</div>';return}
+      nodes.forEach(node=>{
+        const el=document.createElement('div');el.className='tree-node';
+        const ct=document.createElement('div');ct.className='tree-node-content';
+        const tg=document.createElement('span');tg.className='tree-toggle'+(node.type==='folder'?'':' hidden');tg.textContent='\u25B6';ct.appendChild(tg);
+        if(node.type==='folder'){
+          const cb=document.createElement('input');cb.type='checkbox';cb.style.cssText='margin-right:4px;accent-color:var(--orange);cursor:pointer;';
+          cb.checked=schedSelectedFolders.includes(node.name);
+          cb.addEventListener('change',()=>{if(cb.checked){if(!schedSelectedFolders.includes(node.name))schedSelectedFolders.push(node.name)}else{schedSelectedFolders=schedSelectedFolders.filter(f=>f!==node.name)}updateSchedFolderInfo()});
+          ct.appendChild(cb);
+        }
+        const ic=document.createElement('span');ic.className='tree-icon';ic.textContent=node.type==='folder'?'\uD83D\uDCC1':'\uD83D\uDCC4';ct.appendChild(ic);
+        if(node.type==='request'&&node.method){const m=document.createElement('span');m.className='tree-method '+node.method;m.textContent=node.method;ct.appendChild(m)}
+        const lb=document.createElement('span');lb.className='tree-label';lb.textContent=node.name;lb.title=node.path||node.name;ct.appendChild(lb);
+        el.appendChild(ct);
+        if(node.type==='folder'&&node.children&&node.children.length){
+          const ch=document.createElement('div');ch.className='tree-children collapsed';renderSchedTree(node.children,ch);el.appendChild(ch);
+          tg.addEventListener('click',e=>{e.stopPropagation();ch.classList.toggle('collapsed');tg.classList.toggle('open')});
+        }
+        target.appendChild(el);
+      });
+    }
+
+    function updateSchedFolderInfo(){
+      const el=document.getElementById('schedSelectedFolders');
+      if(schedSelectedFolders.length===0){el.textContent='No folders selected — will run entire collection';el.style.color='var(--text-muted)'}
+      else{el.textContent='Selected: '+schedSelectedFolders.join(', ');el.style.color='var(--orange)'}
+    }
+
+    document.getElementById('schedTreeSearch').addEventListener('input',function(){
+      const q=this.value.toLowerCase().trim();if(!schedTreeData)return;
+      if(!q){renderSchedTree(schedTreeData);return}
+      const f=filterTree(schedTreeData,q),c=document.getElementById('schedTreeContainer');c.innerHTML='';
+      if(!f.length)c.innerHTML='<div class="empty-state" style="padding:20px;">No matches</div>';
+      else{renderSchedTree(f,c);c.querySelectorAll('.tree-children').forEach(x=>x.classList.remove('collapsed'));c.querySelectorAll('.tree-toggle').forEach(x=>x.classList.add('open'))}
+    });
+
+    document.getElementById('schedCreateBtn').addEventListener('click', async()=>{
+      const name=document.getElementById('schedName').value;
+      const collection=document.getElementById('schedCollection').value;
+      const folders=schedSelectedFolders.slice();
+      const targetEnv=document.getElementById('schedEnv').value.trim();
+      const environment=document.getElementById('schedEnvFile').value;
+      const scheduleType=document.getElementById('schedType').value;
+      const scheduleTime=document.getElementById('schedTime').value;
+      if(!collection){alert('Select a collection');return}
+      if(!scheduleTime){alert('Set a schedule time');return}
+      const body={name,collection,folders,targetEnv,environment,scheduleType,scheduleTime:new Date(scheduleTime).toISOString()};
+      try{const r=await fetch('/api/schedules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();document.getElementById('schedStatus').textContent='Job scheduled!';loadScheduleJobs()}catch(e){document.getElementById('schedStatus').textContent='Error'}
+    });
+
+    async function loadScheduler(){
+      const cols=await fetch('/api/collections').then(r=>r.json());
+      const envs=await fetch('/api/environments').then(r=>r.json());
+      const cs=document.getElementById('schedCollection');
+      cs.innerHTML='<option value="">-- Select --</option>';
+      cols.forEach(c=>{cs.innerHTML+=`<option value="${c}">${c}</option>`});
+      const es=document.getElementById('schedEnvFile');
+      es.innerHTML='<option value="">-- None --</option>';
+      envs.forEach(e=>{es.innerHTML+=`<option value="${e}">${e}</option>`});
+      loadScheduleJobs();
+    }
+
+    async function loadScheduleJobs(){
+      const jobs=await fetch('/api/schedules').then(r=>r.json());
+      const c=document.getElementById('schedJobsList');
+      if(!jobs.length){c.innerHTML='<div class="empty-state"><div class="icon">&#9200;</div><p>No scheduled jobs yet. Create one above.</p></div>';return}
+      let html=`<table class="data-table"><tr><th>Job</th><th>Collection</th><th>Folders</th><th>Environment</th><th>Schedule</th><th>Next Run</th><th>Countdown</th><th>Last Run</th><th>Run Status</th><th>Actions</th></tr>`;
+      jobs.forEach(j=>{
+        const statusClass=j.status==='active'?'badge-passed':j.status==='paused'?'badge-running':j.status==='completed'?'badge-running':'badge-error';
+        const lastStatusClass=j.lastStatus==='passed'?'badge-passed':j.lastStatus==='failed'?'badge-failed':j.lastStatus==='running'?'badge-running':'';
+        const folders=j.folders.length?j.folders.join(', '):'Entire collection';
+        const nextRun=j.status==='active'?new Date(j.nextRun).toLocaleString():'—';
+        const lastRun=j.lastRun?new Date(j.lastRun).toLocaleString():'Never';
+        const lastStatusText=j.lastStatus||'—';
+        const schedLabel={once:'Once',daily:'Daily',hourly:'Every Hour',every30min:'Every 30 Min'}[j.scheduleType]||j.scheduleType;
+        html+=`<tr>
+          <td><strong>${j.name}</strong><br><span class="badge badge-running" style="font-size:0.58rem;margin-top:3px;display:inline-block;">AUTOMATED</span></td>
+          <td style="font-size:0.76rem;">${j.collection}</td>
+          <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.76rem;" title="${folders}">${folders}</td>
+          <td>${j.targetEnv||'Default'}</td>
+          <td><span class="badge badge-passed">${schedLabel}</span></td>
+          <td style="font-size:0.75rem;">${nextRun}</td>
+          <td style="font-size:0.75rem;font-weight:600;" id="countdown-${j.id}">${j.status==='active'?'...':'—'}</td>
+          <td style="font-size:0.75rem;">${lastRun}</td>
+          <td>${lastStatusClass?`<span class="badge ${lastStatusClass}">${lastStatusText}</span>`:lastStatusText}</td>
+          <td style="white-space:nowrap;">
+            ${j.status==='active'?`<button class="btn btn-sm btn-ghost" onclick="pauseSchedule('${j.id}')" title="Pause">&#9208;</button>`:`<button class="btn btn-sm btn-ghost" onclick="resumeSchedule('${j.id}')" title="Resume">&#9654;</button>`}
+            <button class="btn btn-sm btn-danger" onclick="deleteSchedule('${j.id}')" title="Delete">&#10005;</button>
+          </td>
+        </tr>`;
+      });
+      html+='</table>';c.innerHTML=html;
+      // Start countdown timers
+      startCountdowns(jobs);
+    }
+
+    let countdownInterval=null;
+    function startCountdowns(jobs){
+      if(countdownInterval)clearInterval(countdownInterval);
+      countdownInterval=setInterval(()=>{
+        const now=Date.now();
+        jobs.forEach(j=>{
+          const el=document.getElementById('countdown-'+j.id);
+          if(!el)return;
+          if(j.status!=='active'){el.textContent='—';return}
+          if(j.lastStatus==='running'){el.innerHTML='<span style="color:var(--yellow);">&#9654; Running...</span>';return}
+          const diff=new Date(j.nextRun).getTime()-now;
+          if(diff<=0){el.innerHTML='<span style="color:var(--orange);">Due now!</span>';return}
+          const h=Math.floor(diff/3600000);
+          const m=Math.floor((diff%3600000)/60000);
+          const s=Math.floor((diff%60000)/1000);
+          el.textContent=`${h>0?h+'h ':''}${m}m ${s}s`;
+          el.style.color='var(--green)';
+        });
+      },1000);
+    }
+
+    async function deleteSchedule(id){await fetch(`/api/schedules/${id}`,{method:'DELETE'});loadScheduleJobs()}
+    async function pauseSchedule(id){await fetch(`/api/schedules/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'paused'})});loadScheduleJobs()}
+    async function resumeSchedule(id){await fetch(`/api/schedules/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'active'})});loadScheduleJobs()}
+
+    // Auto-refresh scheduler every 10s when on scheduler tab
+    setInterval(()=>{if(document.querySelector('[data-tab="scheduler"]').classList.contains('active'))loadScheduleJobs()},10000);
+
+    loadDropdowns();renderStoredCollections();
+
+    function showToast(status,title,message,reportName){const c=document.getElementById('toastContainer'),t=document.createElement('div');t.className=`toast ${status}`;const icon=status==='passed'?'&#9989;':status==='failed'?'&#10060;':'&#9888;&#65039;';let actions='';if(reportName){actions=`<div class="toast-actions"><a class="btn btn-sm btn-primary" href="/reports/${reportName}" target="_blank" style="text-decoration:none;font-size:0.72rem;">View Report</a><a class="btn btn-sm btn-ghost" href="/api/reports/download-zip/${encodeURIComponent(reportName)}" style="text-decoration:none;font-size:0.72rem;">&#128230; ZIP</a></div>`}t.innerHTML=`<span class="toast-icon">${icon}</span><div class="toast-body"><div class="toast-title">${title}</div><div class="toast-msg">${message}</div>${actions}</div><button class="toast-close" onclick="dismissToast(this)">&times;</button>`;c.appendChild(t);setTimeout(()=>{if(t.parentNode){t.classList.add('removing');setTimeout(()=>t.remove(),300)}},15000);try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=status==='passed'?800:400;g.gain.value=0.08;o.start();o.stop(ctx.currentTime+0.12)}catch(e){}}
+    function dismissToast(btn){const t=btn.closest('.toast');t.classList.add('removing');setTimeout(()=>t.remove(),300)}
+
+    let knownRunStatuses={};
+    async function pollRunStatus(){try{const h=await fetch('/api/history').then(r=>r.json());h.forEach(run=>{const prev=knownRunStatuses[run.id];if(prev==='running'&&run.status!=='running'){const folder=run.folder&&run.folder!=='All'?` / ${run.folder}`:'';let msg='';if(run.summary&&run.summary.totalAssertions!=null){const p=run.summary.totalAssertions-(run.summary.failedAssertions||0);msg=`${p}/${run.summary.totalAssertions} assertions passed`;if(run.summary.totalDuration)msg+=` in ${(run.summary.totalDuration/1000).toFixed(1)}s`}else if(run.summary&&run.summary.error){msg=run.summary.error}showToast(run.status,`${run.collection}${folder}`,msg,run.reportName);document.getElementById('statusBadge').textContent='\u25CF Ready';document.getElementById('statusBadge').style.background='var(--green-bg)';document.getElementById('statusBadge').style.color='var(--green)'}knownRunStatuses[run.id]=run.status})}catch(e){}}
+    setInterval(pollRunStatus,2000);pollRunStatus();
+  </script>
+</body>
+</html>
