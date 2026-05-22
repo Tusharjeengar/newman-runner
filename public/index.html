@@ -233,6 +233,7 @@
     .badge-failed { background: var(--red-bg); color: var(--red); }
     .badge-running { background: var(--yellow-bg); color: var(--yellow); }
     .badge-error { background: var(--red-bg); color: var(--red); }
+    .badge-stopped { background: var(--red-bg); color: var(--red); }
     .report-link { color: var(--orange); text-decoration: none; font-size: 0.8rem; font-weight: 600; }
     .report-link:hover { text-decoration: underline; }
     .empty-state { text-align: center; padding: 40px; color: var(--text-muted); }
@@ -287,10 +288,33 @@
     @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
     .toast.removing { animation: slideOut 0.3s ease forwards; }
+    /* ========== CONFIRM MODAL ========== */
+    .modal-overlay { position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:10000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px); }
+    .modal-overlay.visible { display:flex; }
+    .modal-box { background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:28px;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.5);animation:modalIn 0.2s ease; }
+    .modal-title { font-size:1rem;font-weight:700;color:var(--orange);margin-bottom:16px;display:flex;align-items:center;gap:8px; }
+    .modal-row { display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.82rem; }
+    .modal-row:last-child { border-bottom:none; }
+    .modal-label { color:var(--text-muted);font-weight:500; }
+    .modal-value { color:var(--text-primary);font-weight:600;text-align:right;max-width:60%;word-break:break-word; }
+    .modal-actions { margin-top:20px;display:flex;gap:10px;justify-content:flex-end; }
+    @keyframes modalIn { from{transform:scale(0.95);opacity:0} to{transform:scale(1);opacity:1} }
   </style>
 </head>
 <body>
   <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Confirm Run Modal -->
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal-box">
+      <div class="modal-title">&#9654; Confirm Run</div>
+      <div id="confirmModalBody"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="confirmCancel">Cancel</button>
+        <button class="btn btn-primary" id="confirmProceed">&#9654; Run Now</button>
+      </div>
+    </div>
+  </div>
 
   <aside class="sidebar">
     <div class="sidebar-brand">
@@ -305,6 +329,9 @@
       <div class="nav-item" data-tab="logs"><span class="nav-icon">&#128220;</span> Logs</div>
       <div class="nav-item" data-tab="history"><span class="nav-icon">&#128337;</span> History</div>
       <div class="nav-item" data-tab="reports"><span class="nav-icon">&#128202;</span> Reports</div>
+      <div class="nav-section">Intelligence</div>
+      <div class="nav-item" data-tab="insights"><span class="nav-icon">&#129504;</span> Insights</div>
+      <div class="nav-item" data-tab="assertgen"><span class="nav-icon">&#129302;</span> Assert Generator</div>
       <div class="nav-section">Automation</div>
       <div class="nav-item" data-tab="scheduler"><span class="nav-icon">&#9200;</span> Scheduler</div>
     </nav>
@@ -349,11 +376,20 @@
           <div class="form-group"><label>Target Environment <span style="font-weight:400;color:var(--text-muted);">— value used in collection pre-script (e.g. Dev, Preprod, Sprint)</span></label><input type="text" id="targetEnvSelect" placeholder="Enter your environment name as defined in pre-script"></div>
           <div class="form-group" id="sprintNumberGroup" style="display:none;"><label>Sprint Number</label><input type="text" id="sprintNumber" placeholder="e.g. 109"></div>
           <div class="form-group"><label>Environment File</label><select id="environmentSelect"><option value="">-- None --</option></select></div>
-          <div class="form-group"><label>Custom Variables</label><div id="customVarsContainer"></div><button class="btn btn-sm btn-ghost" id="addVarBtn" style="margin-top:6px;">+ Add Variable</button></div>
+          <div class="form-group"><label>Custom Variables, Headers & Params <span style="font-weight:400;color:var(--text-muted);">— injected into every request at runtime</span></label><div id="customVarsContainer"></div><button class="btn btn-sm btn-ghost" id="addVarBtn" style="margin-top:6px;">+ Add</button></div>
           <div class="form-group"><label>Report Name</label><input type="text" id="reportTitle" placeholder="e.g. Login-Tests-Report"></div>
+          <div class="form-group">
+            <label>Data File (CSV/JSON) <span style="font-weight:400;color:var(--text-muted);">— for data-driven testing, each row = 1 iteration</span></label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select id="dataFileSelect" style="flex:1;padding:9px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.84rem;font-family:inherit;"><option value="">-- None (no data file) --</option></select>
+              <label class="btn btn-sm btn-ghost" style="cursor:pointer;margin:0;"><span>&#128228; Upload</span><input type="file" accept=".csv,.json" id="dataFileUpload" style="display:none;"></label>
+            </div>
+            <div id="dataFilePreview" style="display:none;margin-top:8px;padding:10px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.72rem;overflow-x:auto;"></div>
+          </div>
           <div class="inline-row"><div class="form-group"><label>Iterations</label><input type="number" id="iterationCount" value="1" min="1"></div><div class="form-group"><label>Delay (ms)</label><input type="number" id="delayRequest" value="0" min="0"></div></div>
         </div>
         <button class="btn btn-primary" id="runBtn">&#9654; Run Now</button>
+        <button class="btn btn-danger" id="stopBtn" style="display:none;margin-left:8px;">&#9724; Stop</button>
         <span id="runStatus" style="margin-left:14px;color:var(--text-muted);font-size:0.8rem;"></span>
       </div>
 
@@ -369,10 +405,14 @@
       <!-- LOGS PANEL -->
       <div class="panel" id="panel-logs">
         <div class="card">
-          <div class="card-title">Execution Logs</div>
+          <div class="card-title">Execution Logs <span style="font-size:0.7rem;font-weight:400;color:var(--text-muted);text-transform:none;letter-spacing:0;margin-left:8px;">Auto-refreshes every 2s</span></div>
           <div class="form-group"><label>Select Run</label><select id="logRunSelect"><option value="">-- Select a run --</option></select></div>
           <button class="btn btn-sm btn-ghost" id="refreshLogs" style="margin-bottom:12px;">&#8635; Refresh</button>
           <div class="log-viewer" id="logViewer"><div class="empty-state" style="padding:30px;color:#888;">Select a run to view logs</div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Server Errors</div>
+          <div class="log-viewer" id="serverErrorsViewer" style="max-height:200px;"><div class="empty-state" style="padding:20px;color:#888;">No errors</div></div>
         </div>
       </div>
 
@@ -381,6 +421,186 @@
 
       <!-- REPORTS PANEL -->
       <div class="panel" id="panel-reports"><div class="card"><div class="card-title">Generated Reports</div><div id="reportsContent"><div class="empty-state"><div class="icon">&#128202;</div><p>No reports yet</p></div></div></div></div>
+
+      <!-- INSIGHTS PANEL -->
+      <div class="panel" id="panel-insights">
+        <div class="card" style="background:var(--orange-light);border-color:var(--orange-border);padding:0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.toggle-icon').textContent=this.nextElementSibling.style.display==='none'?'+':'-'">
+            <span style="font-size:0.82rem;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:8px;">&#129504; How AI Insights works</span>
+            <span class="toggle-icon" style="font-size:1.1rem;color:var(--orange);font-weight:700;">+</span>
+          </div>
+          <div style="padding:0 18px 14px;font-size:0.8rem;color:var(--text-secondary);line-height:1.7;display:none;">
+            &#8226; <strong>Analyzes all JSON reports</strong> in your reports folder automatically.<br>
+            &#8226; <strong>Flaky Detection:</strong> Identifies tests that flip between pass/fail across runs.<br>
+            &#8226; <strong>Anomaly Detection:</strong> Uses statistical z-score analysis to flag abnormal response times.<br>
+            &#8226; <strong>Failure Classification:</strong> Groups failures by root cause (auth, server, timeout, data).<br>
+            &#8226; <strong>Health Score:</strong> Weighted score (0-100) based on pass rate, flakiness, and anomalies.<br>
+            &#8226; <strong>Recommendations:</strong> AI-generated action items based on detected patterns.<br>
+            &#8226; <strong>Tip:</strong> The more reports you have, the better the analysis. Run tests regularly for best results.
+          </div>
+        </div>
+
+        <div style="margin-bottom:18px;display:flex;align-items:center;gap:12px;">
+          <button class="btn btn-primary" id="insightsRefreshBtn" onclick="loadInsights()">&#129504; Analyze Reports</button>
+          <span id="insightsStatus" style="font-size:0.76rem;color:var(--text-muted);"></span>
+        </div>
+
+        <!-- Health Score Card -->
+        <div class="card" id="insightsHealthCard" style="display:none;">
+          <div class="card-title">Health Score</div>
+          <div style="display:flex;align-items:center;gap:24px;">
+            <div style="position:relative;width:100px;height:100px;">
+              <svg width="100" height="100" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="var(--border)" stroke-width="8"/>
+                <circle cx="50" cy="50" r="42" fill="none" stroke-width="8" stroke-linecap="round"
+                  id="insightsScoreCircle"
+                  stroke="var(--green)"
+                  stroke-dasharray="264"
+                  stroke-dashoffset="264"
+                  transform="rotate(-90 50 50)"/>
+              </svg>
+              <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;">
+                <div style="font-size:1.5rem;font-weight:700;" id="insightsScoreNum">0</div>
+                <div style="font-size:0.55rem;color:var(--text-muted);">/100</div>
+              </div>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:0.9rem;font-weight:600;color:var(--text-primary);margin-bottom:4px;" id="insightsHealthMsg">Analyzing...</div>
+              <div style="font-size:0.76rem;color:var(--text-secondary);margin-bottom:8px;" id="insightsHealthTrend"></div>
+              <div style="display:flex;gap:16px;font-size:0.72rem;color:var(--text-muted);">
+                <span id="insightsReportCount"></span>
+                <span id="insightsEndpointCount"></span>
+                <span id="insightsAssertionCount"></span>
+              </div>
+            </div>
+          </div>
+          <!-- Run history mini chart -->
+          <div style="margin-top:16px;">
+            <div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;font-weight:600;">Pass Rate Trend</div>
+            <div id="insightsTrendChart" style="height:50px;display:flex;align-items:flex-end;gap:3px;"></div>
+          </div>
+        </div>
+
+        <!-- Flaky Tests Card -->
+        <div class="card" id="insightsFlakyCard" style="display:none;">
+          <div class="card-title">Flaky Tests <span id="insightsFlakyCount" style="font-size:0.7rem;font-weight:400;color:var(--text-muted);text-transform:none;letter-spacing:0;margin-left:8px;"></span></div>
+          <div id="insightsFlakyContent"></div>
+        </div>
+
+        <!-- Anomalies Card -->
+        <div class="card" id="insightsAnomalyCard" style="display:none;">
+          <div class="card-title">Response Time Anomalies <span id="insightsAnomalyCount" style="font-size:0.7rem;font-weight:400;color:var(--text-muted);text-transform:none;letter-spacing:0;margin-left:8px;"></span></div>
+          <div id="insightsAnomalyContent"></div>
+        </div>
+
+        <!-- Failure Patterns Card -->
+        <div class="card" id="insightsFailureCard" style="display:none;">
+          <div class="card-title">Failure Pattern Analysis <span id="insightsFailureTotal" style="font-size:0.7rem;font-weight:400;color:var(--text-muted);text-transform:none;letter-spacing:0;margin-left:8px;"></span></div>
+          <div id="insightsFailureContent"></div>
+        </div>
+
+        <!-- Degradation Card -->
+        <div class="card" id="insightsDegradationCard" style="display:none;">
+          <div class="card-title">&#128200; Performance Degradation Over Time</div>
+          <div id="insightsDegradationContent"></div>
+        </div>
+
+        <!-- Slowest Endpoints Card -->
+        <div class="card" id="insightsSlowestCard" style="display:none;">
+          <div class="card-title">&#128034; Slowest Endpoints</div>
+          <div id="insightsSlowestContent"></div>
+        </div>
+
+        <!-- Most Failing Requests Card -->
+        <div class="card" id="insightsFailingCard" style="display:none;">
+          <div class="card-title">&#10060; Most Failing Requests</div>
+          <div id="insightsFailingContent"></div>
+        </div>
+
+        <!-- Correlated Failures Card -->
+        <div class="card" id="insightsCorrelationCard" style="display:none;">
+          <div class="card-title">&#128279; Correlated Failures</div>
+          <div id="insightsCorrelationContent"></div>
+        </div>
+
+        <!-- Status Code Distribution Card -->
+        <div class="card" id="insightsStatusCard" style="display:none;">
+          <div class="card-title">&#128202; Status Code Distribution</div>
+          <div id="insightsStatusContent"></div>
+        </div>
+
+        <!-- Recommendations Card -->
+        <div class="card" id="insightsRecsCard" style="display:none;">
+          <div class="card-title">&#128161; AI Recommendations</div>
+          <div id="insightsRecsContent"></div>
+        </div>
+
+        <!-- No Data State -->
+        <div class="card" id="insightsNoData" style="display:none;">
+          <div class="empty-state">
+            <div class="icon">&#129504;</div>
+            <p>No JSON reports found to analyze.</p>
+            <p style="font-size:0.72rem;margin-top:8px;color:var(--text-muted);">Run some test collections first — the JSON reports will be analyzed automatically.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ASSERT GENERATOR PANEL -->
+      <div class="panel" id="panel-assertgen">
+        <div class="card" style="background:var(--orange-light);border-color:var(--orange-border);padding:0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.toggle-icon').textContent=this.nextElementSibling.style.display==='none'?'+':'-'">
+            <span style="font-size:0.82rem;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:8px;">&#129302; How Assert Generator works</span>
+            <span class="toggle-icon" style="font-size:1.1rem;color:var(--orange);font-weight:700;">+</span>
+          </div>
+          <div style="padding:0 18px 14px;font-size:0.8rem;color:var(--text-secondary);line-height:1.7;display:none;">
+            &#8226; <strong>Paste a JSON response body</strong> from any API endpoint.<br>
+            &#8226; The AI engine analyzes structure, types, patterns (email, UUID, dates, URLs).<br>
+            &#8226; <strong>Generates ready-to-use Postman test scripts</strong> you can copy directly.<br>
+            &#8226; <strong>Depth:</strong> Shallow = top-level only. Deep = nested objects too.<br>
+            &#8226; <strong>Style:</strong> Strict = exact values. Balanced = types + patterns. Flexible = existence only.<br>
+            &#8226; Includes: schema validation, type checks, pattern matching, security checks, null guards.
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Input</div>
+          <div class="form-group">
+            <label>Response Body (JSON)</label>
+            <textarea id="agInput" style="width:100%;height:200px;padding:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:0.8rem;font-family:'JetBrains Mono','Fira Code',monospace;resize:vertical;" placeholder='Paste your JSON response here, e.g.
+{
+  "id": "txn_123",
+  "status": "SUCCESS",
+  "amount": 150.00,
+  "customer": {
+    "name": "John",
+    "email": "john@example.com"
+  }
+}'></textarea>
+          </div>
+          <div class="inline-row">
+            <div class="form-group"><label>Expected Status Code</label><input type="number" id="agStatusCode" value="200" min="100" max="599"></div>
+            <div class="form-group"><label>Depth</label><select id="agDepth"><option value="deep">Deep (nested objects)</option><option value="shallow">Shallow (top-level only)</option></select></div>
+            <div class="form-group"><label>Style</label><select id="agStyle"><option value="balanced">Balanced (types + patterns)</option><option value="strict">Strict (exact values)</option><option value="flexible">Flexible (existence only)</option></select></div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+            <label style="font-size:0.74rem;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" id="agSchema" checked style="accent-color:var(--orange);"> Schema</label>
+            <label style="font-size:0.74rem;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" id="agPerf" checked style="accent-color:var(--orange);"> Performance</label>
+            <label style="font-size:0.74rem;color:var(--text-secondary);display:flex;align-items:center;gap:4px;"><input type="checkbox" id="agNegative" checked style="accent-color:var(--orange);"> Security Checks</label>
+          </div>
+          <button class="btn btn-primary" id="agGenerateBtn" onclick="generateAssertions()">&#129302; Generate Assertions</button>
+          <span id="agStatus" style="margin-left:14px;font-size:0.76rem;color:var(--text-muted);"></span>
+        </div>
+
+        <!-- Output -->
+        <div class="card" id="agOutputCard" style="display:none;">
+          <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>Generated Test Script <span id="agCount" style="font-size:0.7rem;font-weight:400;color:var(--text-muted);text-transform:none;letter-spacing:0;margin-left:8px;"></span></span>
+            <button class="btn btn-sm btn-primary" onclick="copyAssertions()">&#128203; Copy All</button>
+          </div>
+          <div id="agSummary" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;"></div>
+          <div id="agOutput" style="background:#1e1e1e;border-radius:var(--radius-sm);padding:16px;font-family:'JetBrains Mono','Fira Code',monospace;font-size:0.72rem;max-height:500px;overflow-y:auto;white-space:pre-wrap;color:#d4d4d4;line-height:1.7;"></div>
+        </div>
+      </div>
 
       <!-- SCHEDULER PANEL -->
       <div class="panel" id="panel-scheduler">
@@ -428,8 +648,8 @@
   </main>
 
   <script>
-    let selectedFolder='',treeData=null;
-    const pageTitles={run:['Run Collection','Select a collection and configure your test run'],upload:['Upload Files','Upload Postman collections and environments'],logs:['Logs','View real-time execution logs'],history:['Run History','View past test run results'],reports:['Reports','Browse and download HTML reports'],scheduler:['Scheduler','Automate collection runs on a schedule']};
+    let selectedFolder='',selectedRequest='',treeData=null;
+    const pageTitles={run:['Run Collection','Select a collection and configure your test run'],upload:['Upload Files','Upload Postman collections and environments'],logs:['Logs','View real-time execution logs'],history:['Run History','View past test run results'],reports:['Reports','Browse and download HTML reports'],insights:['AI Insights','ML-powered test analysis and recommendations'],assertgen:['Assert Generator','AI-powered Postman assertion generator'],scheduler:['Scheduler','Automate collection runs on a schedule']};
 
     function getStoredCollections(){try{return JSON.parse(localStorage.getItem('newman_collections')||'[]')}catch{return[]}}
     function addStoredCollection(f){const s=getStoredCollections();if(!s.includes(f)){s.push(f);localStorage.setItem('newman_collections',JSON.stringify(s))}renderStoredCollections()}
@@ -438,38 +658,77 @@
     function useStoredCollection(n){switchTab('run');loadDropdowns().then(()=>{document.getElementById('collectionSelect').value=n;document.getElementById('collectionSelect').dispatchEvent(new Event('change'))})}
 
     function switchTab(t){document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelector(`[data-tab="${t}"]`).classList.add('active');document.getElementById(`panel-${t}`).classList.add('active');document.getElementById('pageTitle').textContent=pageTitles[t][0];document.getElementById('pageDesc').textContent=pageTitles[t][1]}
-    document.querySelectorAll('.nav-item').forEach(item=>{item.addEventListener('click',()=>{const t=item.dataset.tab;switchTab(t);if(t==='history')loadHistory();if(t==='reports')loadReports();if(t==='run')loadDropdowns();if(t==='upload')renderStoredCollections();if(t==='logs')loadLogRuns();if(t==='scheduler')loadScheduler()})});
+    document.querySelectorAll('.nav-item').forEach(item=>{item.addEventListener('click',()=>{const t=item.dataset.tab;switchTab(t);if(t==='history')loadHistory();if(t==='reports')loadReports();if(t==='run')loadDropdowns();if(t==='upload')renderStoredCollections();if(t==='logs')loadLogRuns();if(t==='scheduler')loadScheduler();if(t==='insights')loadInsights()})});
 
-    async function loadDropdowns(){const[cols,envs]=await Promise.all([fetch('/api/collections').then(r=>r.json()),fetch('/api/environments').then(r=>r.json())]);const cs=document.getElementById('collectionSelect'),es=document.getElementById('environmentSelect');cs.innerHTML='<option value="">-- Select a collection --</option>';cols.forEach(c=>{cs.innerHTML+=`<option value="${c}">${c}</option>`;addStoredCollection(c)});es.innerHTML='<option value="">-- None --</option>';envs.forEach(e=>{es.innerHTML+=`<option value="${e}">${e}</option>`})}
+    async function loadDropdowns(){const[cols,envs,dfs]=await Promise.all([fetch('/api/collections').then(r=>r.json()),fetch('/api/environments').then(r=>r.json()),fetch('/api/datafiles').then(r=>r.json())]);const cs=document.getElementById('collectionSelect'),es=document.getElementById('environmentSelect'),ds=document.getElementById('dataFileSelect');cs.innerHTML='<option value="">-- Select a collection --</option>';cols.forEach(c=>{cs.innerHTML+=`<option value="${c}">${c}</option>`;addStoredCollection(c)});es.innerHTML='<option value="">-- None --</option>';envs.forEach(e=>{es.innerHTML+=`<option value="${e}">${e}</option>`});ds.innerHTML='<option value="">-- None (no data file) --</option>';dfs.forEach(d=>{ds.innerHTML+=`<option value="${d}">${d}</option>`})}
 
-    document.getElementById('collectionSelect').addEventListener('change',async function(){const col=this.value,ts=document.getElementById('treeSection');selectedFolder='';updateSelectionInfo();if(!col){ts.style.display='none';treeData=null;return}ts.style.display='block';document.getElementById('treeContainer').innerHTML='<div class="empty-state" style="padding:20px;">Loading...</div>';try{const r=await fetch(`/api/collection-tree/${encodeURIComponent(col)}`);const d=await r.json();treeData=d.tree;renderTree(treeData)}catch{document.getElementById('treeContainer').innerHTML='<div class="empty-state" style="color:var(--red);">Failed to load</div>'}});
+    document.getElementById('collectionSelect').addEventListener('change',async function(){const col=this.value,ts=document.getElementById('treeSection');selectedFolder='';selectedRequest='';updateSelectionInfo();if(!col){ts.style.display='none';treeData=null;return}ts.style.display='block';document.getElementById('treeContainer').innerHTML='<div class="empty-state" style="padding:20px;">Loading...</div>';try{const r=await fetch(`/api/collection-tree/${encodeURIComponent(col)}`);const d=await r.json();treeData=d.tree;renderTree(treeData)}catch{document.getElementById('treeContainer').innerHTML='<div class="empty-state" style="color:var(--red);">Failed to load</div>'}});
 
-    function renderTree(nodes,container){const target=container||document.getElementById('treeContainer');if(!container)target.innerHTML='';if(!nodes||!nodes.length){target.innerHTML='<div class="empty-state" style="padding:20px;">Empty</div>';return}nodes.forEach(node=>{const el=document.createElement('div');el.className='tree-node';const ct=document.createElement('div');ct.className='tree-node-content';if(selectedFolder===node.name)ct.classList.add('selected');const tg=document.createElement('span');tg.className='tree-toggle'+(node.type==='folder'?'':' hidden');tg.textContent='\u25B6';ct.appendChild(tg);const ic=document.createElement('span');ic.className='tree-icon';ic.textContent=node.type==='folder'?'\uD83D\uDCC1':'\uD83D\uDCC4';ct.appendChild(ic);if(node.type==='request'&&node.method){const m=document.createElement('span');m.className='tree-method '+node.method;m.textContent=node.method;ct.appendChild(m)}const lb=document.createElement('span');lb.className='tree-label';lb.textContent=node.name;lb.title=node.path||node.name;ct.appendChild(lb);el.appendChild(ct);if(node.type==='folder'&&node.children&&node.children.length){const ch=document.createElement('div');ch.className='tree-children collapsed';renderTree(node.children,ch);el.appendChild(ch);tg.addEventListener('click',e=>{e.stopPropagation();ch.classList.toggle('collapsed');tg.classList.toggle('open')})}ct.addEventListener('click',()=>{if(node.type==='folder'){document.querySelectorAll('.tree-node-content.selected').forEach(x=>x.classList.remove('selected'));ct.classList.add('selected');selectedFolder=node.name;updateSelectionInfo()}});target.appendChild(el)})}
-    function updateSelectionInfo(){const i=document.getElementById('selectionInfo'),t=document.getElementById('selectionText');if(selectedFolder){i.classList.add('visible');t.textContent='Running folder: '+selectedFolder}else{i.classList.remove('visible');t.textContent=''}}
-    document.getElementById('clearSelection').addEventListener('click',()=>{selectedFolder='';document.querySelectorAll('.tree-node-content.selected').forEach(x=>x.classList.remove('selected'));updateSelectionInfo()});
+    function renderTree(nodes,container){const target=container||document.getElementById('treeContainer');if(!container)target.innerHTML='';if(!nodes||!nodes.length){target.innerHTML='<div class="empty-state" style="padding:20px;">Empty</div>';return}nodes.forEach(node=>{const el=document.createElement('div');el.className='tree-node';const ct=document.createElement('div');ct.className='tree-node-content';if((node.type==='folder'&&selectedFolder===node.name)||(node.type==='request'&&selectedRequest===node.name))ct.classList.add('selected');const tg=document.createElement('span');tg.className='tree-toggle'+(node.type==='folder'?'':' hidden');tg.textContent='\u25B6';ct.appendChild(tg);const ic=document.createElement('span');ic.className='tree-icon';ic.textContent=node.type==='folder'?'\uD83D\uDCC1':'\uD83D\uDCC4';ct.appendChild(ic);if(node.type==='request'&&node.method){const m=document.createElement('span');m.className='tree-method '+node.method;m.textContent=node.method;ct.appendChild(m)}const lb=document.createElement('span');lb.className='tree-label';lb.textContent=node.name;lb.title=node.path||node.name;ct.appendChild(lb);el.appendChild(ct);if(node.type==='folder'&&node.children&&node.children.length){const ch=document.createElement('div');ch.className='tree-children collapsed';renderTree(node.children,ch);el.appendChild(ch);tg.addEventListener('click',e=>{e.stopPropagation();ch.classList.toggle('collapsed');tg.classList.toggle('open')})}ct.addEventListener('click',()=>{document.querySelectorAll('.tree-node-content.selected').forEach(x=>x.classList.remove('selected'));ct.classList.add('selected');if(node.type==='folder'){selectedFolder=node.name;selectedRequest=''}else{selectedRequest=node.name;selectedFolder=''}updateSelectionInfo()});target.appendChild(el)})}
+    function updateSelectionInfo(){const i=document.getElementById('selectionInfo'),t=document.getElementById('selectionText');if(selectedFolder){i.classList.add('visible');t.textContent='Running folder: '+selectedFolder}else if(selectedRequest){i.classList.add('visible');t.textContent='Running request: '+selectedRequest}else{i.classList.remove('visible');t.textContent=''}}
+    document.getElementById('clearSelection').addEventListener('click',()=>{selectedFolder='';selectedRequest='';document.querySelectorAll('.tree-node-content.selected').forEach(x=>x.classList.remove('selected'));updateSelectionInfo()});
     document.getElementById('treeSearch').addEventListener('input',function(){const q=this.value.toLowerCase().trim();if(!treeData)return;if(!q){renderTree(treeData);return}const f=filterTree(treeData,q),c=document.getElementById('treeContainer');c.innerHTML='';if(!f.length)c.innerHTML='<div class="empty-state" style="padding:20px;">No matches</div>';else{renderTree(f,c);c.querySelectorAll('.tree-children').forEach(x=>x.classList.remove('collapsed'));c.querySelectorAll('.tree-toggle').forEach(x=>x.classList.add('open'))}});
     function filterTree(nodes,q){const r=[];nodes.forEach(n=>{const m=n.name.toLowerCase().includes(q);if(n.type==='folder'&&n.children){const fc=filterTree(n.children,q);if(m||fc.length)r.push({...n,children:m?n.children:fc})}else{if(m)r.push(n)}});return r}
 
     document.getElementById('targetEnvSelect').addEventListener('input',function(){document.getElementById('sprintNumberGroup').style.display=this.value.toLowerCase()==='sprint'?'block':'none'});
-    document.getElementById('addVarBtn').addEventListener('click',()=>{const c=document.getElementById('customVarsContainer'),row=document.createElement('div');row.style.cssText='display:flex;gap:8px;margin-bottom:8px;align-items:center;';row.innerHTML=`<input type="text" placeholder="Key" style="flex:1;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:0.8rem;font-family:inherit;"><input type="text" placeholder="Value" style="flex:1;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:0.8rem;font-family:inherit;"><button class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">&#10005;</button>`;c.appendChild(row)});
-    function getCustomVars(){const rows=document.querySelectorAll('#customVarsContainer > div'),v=[];rows.forEach(r=>{const i=r.querySelectorAll('input');if(i[0].value.trim())v.push({key:i[0].value.trim(),value:i[1].value})});return v}
+    document.getElementById('addVarBtn').addEventListener('click',()=>{const c=document.getElementById('customVarsContainer'),row=document.createElement('div');row.style.cssText='display:flex;gap:8px;margin-bottom:8px;align-items:center;';row.innerHTML=`<select style="width:100px;padding:8px 6px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:0.75rem;font-family:inherit;"><option value="variable">Variable</option><option value="header">Header</option><option value="query">Query Param</option></select><input type="text" placeholder="Key name" style="flex:1;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:0.8rem;font-family:inherit;"><input type="text" placeholder="Value" style="flex:1;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:0.8rem;font-family:inherit;"><button class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">&#10005;</button>`;c.appendChild(row)});
+    function getCustomVars(){const rows=document.querySelectorAll('#customVarsContainer > div'),v=[];rows.forEach(r=>{const sel=r.querySelector('select');const i=r.querySelectorAll('input');if(i[0].value.trim())v.push({type:sel.value,key:i[0].value.trim(),value:i[1].value})});return v}
 
-    document.getElementById('runBtn').addEventListener('click',async()=>{const col=document.getElementById('collectionSelect').value;if(!col){alert('Select a collection');return}const te=document.getElementById('targetEnvSelect').value.trim(),sn=document.getElementById('sprintNumber').value;const body={collection:col,environment:document.getElementById('environmentSelect').value,iterationCount:document.getElementById('iterationCount').value,delayRequest:document.getElementById('delayRequest').value,folder:selectedFolder||'',reportTitle:document.getElementById('reportTitle').value,targetEnv:te||'',sprintNumber:(te.toLowerCase()==='sprint'&&sn)?sn:'',customVars:getCustomVars()};document.getElementById('runBtn').disabled=true;document.getElementById('runStatus').textContent='Running...';document.getElementById('statusBadge').textContent='\u25CF Running';document.getElementById('statusBadge').style.background='var(--yellow-bg)';document.getElementById('statusBadge').style.color='var(--yellow)';try{await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});document.getElementById('runStatus').textContent='Started! Check Logs or History.'}catch{document.getElementById('runStatus').textContent='Error.'}document.getElementById('runBtn').disabled=false});
+    document.getElementById('runBtn').addEventListener('click',async()=>{const col=document.getElementById('collectionSelect').value;if(!col){alert('Select a collection');return}const te=document.getElementById('targetEnvSelect').value.trim(),sn=document.getElementById('sprintNumber').value;const vars=getCustomVars();const body={collection:col,environment:document.getElementById('environmentSelect').value,iterationCount:document.getElementById('iterationCount').value,delayRequest:document.getElementById('delayRequest').value,folder:selectedFolder||'',requestName:selectedRequest||'',reportTitle:document.getElementById('reportTitle').value,targetEnv:te||'',sprintNumber:(te.toLowerCase()==='sprint'&&sn)?sn:'',customVars:vars,dataFile:document.getElementById('dataFileSelect').value||''};
+      // Build modal content
+      const varItems=vars.filter(v=>v.type!=='header'&&v.type!=='query');
+      const headerItems=vars.filter(v=>v.type==='header');
+      const queryItems=vars.filter(v=>v.type==='query');
+      let rows='';
+      rows+=`<div class="modal-row"><span class="modal-label">Collection</span><span class="modal-value">${col}</span></div>`;
+      rows+=`<div class="modal-row"><span class="modal-label">Target</span><span class="modal-value">${selectedRequest?'Request: '+selectedRequest:selectedFolder?'Folder: '+selectedFolder:'Entire collection'}</span></div>`;
+      rows+=`<div class="modal-row"><span class="modal-label">Environment</span><span class="modal-value">${te||'Default from collection'}</span></div>`;
+      if(body.environment)rows+=`<div class="modal-row"><span class="modal-label">Env File</span><span class="modal-value">${body.environment}</span></div>`;
+      if(varItems.length)rows+=`<div class="modal-row"><span class="modal-label">Variables</span><span class="modal-value">${varItems.map(v=>'<span style="background:var(--bg-input);padding:2px 6px;border-radius:4px;margin:2px;display:inline-block;font-size:0.75rem;">'+v.key+'='+v.value+'</span>').join('')}</span></div>`;
+      if(headerItems.length)rows+=`<div class="modal-row"><span class="modal-label">Headers</span><span class="modal-value">${headerItems.map(v=>'<span style="background:var(--bg-input);padding:2px 6px;border-radius:4px;margin:2px;display:inline-block;font-size:0.75rem;">'+v.key+': '+v.value+'</span>').join('')}</span></div>`;
+      if(queryItems.length)rows+=`<div class="modal-row"><span class="modal-label">Query Params</span><span class="modal-value">${queryItems.map(v=>'<span style="background:var(--bg-input);padding:2px 6px;border-radius:4px;margin:2px;display:inline-block;font-size:0.75rem;">'+v.key+'='+v.value+'</span>').join('')}</span></div>`;
+      rows+=`<div class="modal-row"><span class="modal-label">Iterations</span><span class="modal-value">${body.iterationCount}</span></div>`;
+      if(parseInt(body.delayRequest)>0)rows+=`<div class="modal-row"><span class="modal-label">Delay</span><span class="modal-value">${body.delayRequest}ms</span></div>`;
+      document.getElementById('confirmModalBody').innerHTML=rows;
+      document.getElementById('confirmModal').classList.add('visible');
+      // Wait for user action
+      const proceed=await new Promise(resolve=>{
+        document.getElementById('confirmProceed').onclick=()=>resolve(true);
+        document.getElementById('confirmCancel').onclick=()=>resolve(false);
+      });
+      document.getElementById('confirmModal').classList.remove('visible');
+      if(!proceed)return;
+      document.getElementById('runBtn').disabled=true;document.getElementById('stopBtn').style.display='inline-flex';document.getElementById('runStatus').textContent='Running...';document.getElementById('statusBadge').textContent='\u25CF Running';document.getElementById('statusBadge').style.background='var(--yellow-bg)';document.getElementById('statusBadge').style.color='var(--yellow)';let currentRunId='';try{const resp=await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await resp.json();currentRunId=data.runId;document.getElementById('stopBtn').onclick=async()=>{await fetch(`/api/run/stop/${currentRunId}`,{method:'POST'});document.getElementById('runStatus').textContent='Stopped.';document.getElementById('stopBtn').style.display='none';document.getElementById('runBtn').disabled=false;document.getElementById('statusBadge').textContent='\u25CF Ready';document.getElementById('statusBadge').style.background='var(--green-bg)';document.getElementById('statusBadge').style.color='var(--green)'};document.getElementById('runStatus').textContent='Started! Check Logs or History.'}catch{document.getElementById('runStatus').textContent='Error.'};document.getElementById('runBtn').disabled=false;setTimeout(()=>{document.getElementById('stopBtn').style.display='none'},60000)});
 
     function setupUpload(aId,iId,ep,sId){const a=document.getElementById(aId),i=document.getElementById(iId);a.addEventListener('click',()=>i.click());a.addEventListener('dragover',e=>{e.preventDefault();a.style.borderColor='var(--orange)'});a.addEventListener('dragleave',()=>{a.style.borderColor='var(--border)'});a.addEventListener('drop',e=>{e.preventDefault();a.style.borderColor='var(--border)';if(e.dataTransfer.files.length)uploadFile(e.dataTransfer.files[0],ep,sId)});i.addEventListener('change',()=>{if(i.files.length)uploadFile(i.files[0],ep,sId)})}
     async function uploadFile(file,ep,sId){const fd=new FormData();fd.append(ep.includes('collection')?'collection':'environment',file);const r=await fetch(ep,{method:'POST',body:fd}),d=await r.json();document.getElementById(sId).innerHTML=`<p style="color:var(--green);margin-top:8px;font-size:0.8rem;">&#10003; ${d.filename}</p>`;if(ep.includes('collection'))addStoredCollection(d.filename);loadDropdowns()}
     setupUpload('collectionUpload','collectionFile','/api/upload/collection','collectionUploadStatus');
     setupUpload('environmentUpload','environmentFile','/api/upload/environment','environmentUploadStatus');
 
-    async function loadLogRuns(){const runs=await fetch('/api/logs').then(r=>r.json());const s=document.getElementById('logRunSelect');s.innerHTML='<option value="">-- Select a run --</option>';runs.forEach(r=>{const t=new Date(r.startTime).toLocaleString();s.innerHTML+=`<option value="${r.id}">${r.collection}${r.folder!=='All'?' / '+r.folder:''} — ${t} [${r.status}]</option>`})}
+    async function loadLogRuns(){const runs=await fetch('/api/logs').then(r=>r.json());const s=document.getElementById('logRunSelect');s.innerHTML='<option value="">-- Select a run --</option>';runs.forEach(r=>{const t=new Date(r.startTime).toLocaleString();s.innerHTML+=`<option value="${r.id}">${r.collection}${r.folder!=='All'?' / '+r.folder:''} — ${t} [${r.status}]</option>`});
+      // Load server errors
+      const errors=await fetch('/api/errors').then(r=>r.json());const ev=document.getElementById('serverErrorsViewer');
+      if(!errors.length){ev.innerHTML='<div class="empty-state" style="padding:20px;color:#888;">No errors</div>'}
+      else{ev.innerHTML=errors.map(e=>`<div class="log-line"><span class="log-time">${new Date(e.time).toLocaleTimeString()}</span><span class="log-msg error">${escapeHtml(e.message)}</span></div>`).join('');ev.scrollTop=ev.scrollHeight}
+    }
     document.getElementById('logRunSelect').addEventListener('change',loadSelectedLogs);
     document.getElementById('refreshLogs').addEventListener('click',loadSelectedLogs);
-    async function loadSelectedLogs(){const id=document.getElementById('logRunSelect').value,v=document.getElementById('logViewer');if(!id){v.innerHTML='<div class="empty-state" style="padding:30px;color:#888;">Select a run</div>';return}const logs=await fetch(`/api/logs/${id}`).then(r=>r.json());if(!logs.length){v.innerHTML='<div class="empty-state" style="padding:30px;color:#888;">No logs yet</div>';return}v.innerHTML=logs.map(l=>`<div class="log-line"><span class="log-time">${new Date(l.time).toLocaleTimeString()}</span><span class="log-msg ${l.type}">${escapeHtml(l.message)}</span></div>`).join('');v.scrollTop=v.scrollHeight}
+    let logAutoRefresh=null;
+    async function loadSelectedLogs(){const id=document.getElementById('logRunSelect').value,v=document.getElementById('logViewer');if(!id){v.innerHTML='<div class="empty-state" style="padding:30px;color:#888;">Select a run</div>';if(logAutoRefresh)clearInterval(logAutoRefresh);return}const logs=await fetch(`/api/logs/${id}`).then(r=>r.json());if(!logs.length){v.innerHTML='<div class="empty-state" style="padding:30px;color:#888;">No logs yet</div>';return}v.innerHTML=logs.map(l=>`<div class="log-line"><span class="log-time">${new Date(l.time).toLocaleTimeString()}</span><span class="log-msg ${l.type}">${escapeHtml(l.message)}</span></div>`).join('');v.scrollTop=v.scrollHeight;
+      // Auto-refresh if run is still active
+      if(logAutoRefresh)clearInterval(logAutoRefresh);
+      logAutoRefresh=setInterval(async()=>{const fresh=await fetch(`/api/logs/${id}`).then(r=>r.json());if(fresh.length>0){v.innerHTML=fresh.map(l=>`<div class="log-line"><span class="log-time">${new Date(l.time).toLocaleTimeString()}</span><span class="log-msg ${l.type}">${escapeHtml(l.message)}</span></div>`).join('');v.scrollTop=v.scrollHeight}},2000);
+    }
     function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 
-    async function loadHistory(){const h=await fetch('/api/history').then(r=>r.json()),c=document.getElementById('historyContent');if(!h.length){c.innerHTML='<div class="empty-state"><div class="icon">&#128337;</div><p>No runs yet</p></div>';return}let html=`<table class="data-table"><tr><th>Collection</th><th>Folder</th><th>Env</th><th>Status</th><th>Requests</th><th>Assertions</th><th>Duration</th><th>Report</th></tr>`;h.forEach(r=>{const b=`<span class="badge badge-${r.status}">${r.status}</span>`+(r.automated?' <span class="badge badge-running" style="font-size:0.6rem;">AUTO</span>':''),rq=r.summary&&r.summary.totalRequests!=null?`${r.summary.totalRequests-(r.summary.failedRequests||0)}/${r.summary.totalRequests}`:'-',as=r.summary&&r.summary.totalAssertions!=null?`${r.summary.totalAssertions-(r.summary.failedAssertions||0)}/${r.summary.totalAssertions}`:'-',du=r.summary&&r.summary.totalDuration?`${(r.summary.totalDuration/1000).toFixed(1)}s`:'-',rp=r.reportName?`<a class="report-link" href="/reports/${r.reportName}" target="_blank">View</a>`:'-';html+=`<tr><td>${r.collection}</td><td>${r.folder||'All'}</td><td>${r.environment}</td><td>${b}</td><td>${rq}</td><td>${as}</td><td>${du}</td><td>${rp}</td></tr>`});html+='</table>';c.innerHTML=html}
+    async function loadHistory(){const h=await fetch('/api/history').then(r=>r.json()),c=document.getElementById('historyContent');if(!h.length){c.innerHTML='<div class="empty-state"><div class="icon">&#128337;</div><p>No runs yet</p></div>';return}let html=`<table class="data-table"><tr><th>Collection</th><th>Folder</th><th>Env</th><th>Status</th><th>Requests</th><th>Assertions</th><th>Duration</th><th>Report</th><th>Action</th></tr>`;h.forEach(r=>{const b=`<span class="badge badge-${r.status}">${r.status}</span>`+(r.automated?' <span class="badge badge-running" style="font-size:0.6rem;">AUTO</span>':''),rq=r.summary&&r.summary.totalRequests!=null?`${r.summary.totalRequests-(r.summary.failedRequests||0)}/${r.summary.totalRequests}`:'-',as=r.summary&&r.summary.totalAssertions!=null?`${r.summary.totalAssertions-(r.summary.failedAssertions||0)}/${r.summary.totalAssertions}`:'-',du=r.summary&&r.summary.totalDuration?`${(r.summary.totalDuration/1000).toFixed(1)}s`:'-',rp=r.reportName?`<a class="report-link" href="/reports/${r.reportName}" target="_blank">View</a>`:'-';const action=r.status==='running'?`<button class="btn btn-sm btn-danger" onclick="stopRun('${r.id}')">&#9724; Stop</button>`:'';html+=`<tr><td>${r.collection}</td><td>${r.folder||'All'}</td><td>${r.environment}</td><td>${b}</td><td>${rq}</td><td>${as}</td><td>${du}</td><td>${rp}</td><td>${action}</td></tr>`});html+='</table>';c.innerHTML=html}
 
-    async function loadReports(){const reps=await fetch('/api/reports').then(r=>r.json()),c=document.getElementById('reportsContent');if(!reps.length){c.innerHTML='<div class="empty-state"><div class="icon">&#128202;</div><p>No reports yet</p></div>';return}const htmlFiles=reps.filter(r=>r.endsWith('.html')),jsonFiles=reps.filter(r=>r.endsWith('.json'));let html='<div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;"><a class="btn btn-primary btn-sm" href="/api/reports/download-zip" style="text-decoration:none;">&#128230; Download All ZIP</a><span style="color:var(--text-muted);font-size:0.76rem;">'+reps.length+' file(s)</span></div>';if(htmlFiles.length){html+='<h4 style="font-size:0.76rem;color:var(--orange);margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.5px;">HTML Reports</h4><ul style="list-style:none;padding:0;">'+htmlFiles.map(r=>`<li style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;"><a class="report-link" href="/reports/${r}" target="_blank">&#128196; ${r}</a><div style="display:flex;gap:6px;"><a class="btn btn-sm btn-ghost" href="/reports/${r}" download style="text-decoration:none;">&#11015; HTML</a><a class="btn btn-sm btn-ghost" href="/api/reports/download-zip/${encodeURIComponent(r)}" style="text-decoration:none;">&#128230; ZIP</a></div></li>`).join('')+'</ul>'}if(jsonFiles.length){html+='<h4 style="font-size:0.76rem;color:var(--orange);margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.5px;">JSON Reports</h4><ul style="list-style:none;padding:0;">'+jsonFiles.map(r=>`<li style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;"><span style="color:var(--text-secondary);font-size:0.82rem;">&#128196; ${r}</span><div style="display:flex;gap:6px;"><a class="btn btn-sm btn-ghost" href="/reports/${r}" download style="text-decoration:none;">&#11015; JSON</a><a class="btn btn-sm btn-ghost" href="/api/reports/download-zip/${encodeURIComponent(r)}" style="text-decoration:none;">&#128230; ZIP</a></div></li>`).join('')+'</ul>'}c.innerHTML=html}
+    async function stopRun(runId){try{await fetch(`/api/run/stop/${runId}`,{method:'POST'});loadHistory()}catch(e){}}
+
+    async function loadReports(){const reps=await fetch('/api/reports').then(r=>r.json()),c=document.getElementById('reportsContent');if(!reps.length){c.innerHTML='<div class="empty-state"><div class="icon">&#128202;</div><p>No reports yet</p></div>';return}const htmlFiles=reps.filter(r=>r.endsWith('.html')),jsonFiles=reps.filter(r=>r.endsWith('.json'));let html='<div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;"><a class="btn btn-primary btn-sm" href="/api/reports/download-zip" style="text-decoration:none;">&#128230; Download All ZIP</a><button class="btn btn-sm btn-danger" onclick="deleteAllReports()">&#128465; Delete All</button><span style="color:var(--text-muted);font-size:0.76rem;">'+reps.length+' file(s)</span></div>';if(htmlFiles.length){html+='<h4 style="font-size:0.76rem;color:var(--orange);margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.5px;">HTML Reports</h4><ul style="list-style:none;padding:0;">'+htmlFiles.map(r=>`<li style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;"><a class="report-link" href="/reports/${r}" target="_blank">&#128196; ${r}</a><div style="display:flex;gap:6px;"><a class="btn btn-sm btn-ghost" href="/reports/${r}" download style="text-decoration:none;">&#11015; HTML</a><a class="btn btn-sm btn-ghost" href="/api/reports/download-zip/${encodeURIComponent(r)}" style="text-decoration:none;">&#128230; ZIP</a><button class="btn btn-sm btn-danger" onclick="deleteReport('${r.replace(/'/g,"\\\\'")}')">&#128465;</button></div></li>`).join('')+'</ul>'}if(jsonFiles.length){html+='<h4 style="font-size:0.76rem;color:var(--orange);margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.5px;">JSON Reports</h4><ul style="list-style:none;padding:0;">'+jsonFiles.map(r=>`<li style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;"><span style="color:var(--text-secondary);font-size:0.82rem;">&#128196; ${r}</span><div style="display:flex;gap:6px;"><a class="btn btn-sm btn-ghost" href="/reports/${r}" download style="text-decoration:none;">&#11015; JSON</a><a class="btn btn-sm btn-ghost" href="/api/reports/download-zip/${encodeURIComponent(r)}" style="text-decoration:none;">&#128230; ZIP</a><button class="btn btn-sm btn-danger" onclick="deleteReport('${r.replace(/'/g,"\\\\'")}')">&#128465;</button></div></li>`).join('')+'</ul>'}c.innerHTML=html}
+
+    async function deleteReport(filename){if(!confirm('Delete this report and its paired file?'))return;await fetch('/api/reports/'+encodeURIComponent(filename),{method:'DELETE'});loadReports()}
+    async function deleteAllReports(){if(!confirm('Delete ALL reports? This cannot be undone.'))return;await fetch('/api/reports',{method:'DELETE'});loadReports()}
 
     // ===== SCHEDULER =====
     let schedTreeData=null, schedSelectedFolders=[];
@@ -617,6 +876,449 @@
 
     function showToast(status,title,message,reportName){const c=document.getElementById('toastContainer'),t=document.createElement('div');t.className=`toast ${status}`;const icon=status==='passed'?'&#9989;':status==='failed'?'&#10060;':'&#9888;&#65039;';let actions='';if(reportName){actions=`<div class="toast-actions"><a class="btn btn-sm btn-primary" href="/reports/${reportName}" target="_blank" style="text-decoration:none;font-size:0.72rem;">View Report</a><a class="btn btn-sm btn-ghost" href="/api/reports/download-zip/${encodeURIComponent(reportName)}" style="text-decoration:none;font-size:0.72rem;">&#128230; ZIP</a></div>`}t.innerHTML=`<span class="toast-icon">${icon}</span><div class="toast-body"><div class="toast-title">${title}</div><div class="toast-msg">${message}</div>${actions}</div><button class="toast-close" onclick="dismissToast(this)">&times;</button>`;c.appendChild(t);setTimeout(()=>{if(t.parentNode){t.classList.add('removing');setTimeout(()=>t.remove(),300)}},15000);try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=status==='passed'?800:400;g.gain.value=0.08;o.start();o.stop(ctx.currentTime+0.12)}catch(e){}}
     function dismissToast(btn){const t=btn.closest('.toast');t.classList.add('removing');setTimeout(()=>t.remove(),300)}
+
+    // ===== AI INSIGHTS =====
+    async function loadInsights() {
+      document.getElementById('insightsStatus').textContent = 'Analyzing...';
+      document.getElementById('insightsRefreshBtn').disabled = true;
+
+      try {
+        const data = await fetch('/api/insights').then(r => r.json());
+
+        if (data.status === 'no_data') {
+          document.getElementById('insightsNoData').style.display = 'block';
+          document.getElementById('insightsHealthCard').style.display = 'none';
+          document.getElementById('insightsFlakyCard').style.display = 'none';
+          document.getElementById('insightsAnomalyCard').style.display = 'none';
+          document.getElementById('insightsFailureCard').style.display = 'none';
+          document.getElementById('insightsDegradationCard').style.display = 'none';
+          document.getElementById('insightsSlowestCard').style.display = 'none';
+          document.getElementById('insightsFailingCard').style.display = 'none';
+          document.getElementById('insightsCorrelationCard').style.display = 'none';
+          document.getElementById('insightsStatusCard').style.display = 'none';
+          document.getElementById('insightsRecsCard').style.display = 'none';
+          document.getElementById('insightsStatus').textContent = 'No data available';
+          document.getElementById('insightsRefreshBtn').disabled = false;
+          return;
+        }
+
+        document.getElementById('insightsNoData').style.display = 'none';
+        document.getElementById('insightsStatus').textContent = `Analyzed ${data.reportsAnalyzed} reports`;
+
+        // Health Score
+        renderHealthScore(data.health, data);
+
+        // Flaky Tests
+        renderFlakyTests(data.flakyTests);
+
+        // Anomalies
+        renderAnomalies(data.anomalies);
+
+        // Failure Patterns
+        renderFailurePatterns(data.failurePatterns, data.totalFailures);
+
+        // Degradation
+        renderDegradation(data.degrading);
+
+        // Slowest Endpoints
+        renderSlowestEndpoints(data.slowestEndpoints);
+
+        // Most Failing Requests
+        renderMostFailing(data.mostFailing);
+
+        // Correlated Failures
+        renderCorrelations(data.correlatedFailures);
+
+        // Status Code Distribution
+        renderStatusDistribution(data.statusDistribution);
+
+        // Recommendations
+        renderRecommendations(data.recommendations);
+
+      } catch (e) {
+        document.getElementById('insightsStatus').textContent = 'Error: ' + e.message;
+      }
+
+      document.getElementById('insightsRefreshBtn').disabled = false;
+    }
+
+    function renderHealthScore(health, data) {
+      const card = document.getElementById('insightsHealthCard');
+      card.style.display = 'block';
+
+      const score = health.score;
+      const circle = document.getElementById('insightsScoreCircle');
+      const offset = 264 - (264 * score / 100);
+      circle.style.strokeDashoffset = offset;
+      circle.style.stroke = score >= 80 ? 'var(--green)' : score >= 60 ? 'var(--yellow)' : 'var(--red)';
+      circle.style.transition = 'stroke-dashoffset 1s ease';
+
+      document.getElementById('insightsScoreNum').textContent = score;
+      document.getElementById('insightsScoreNum').style.color = score >= 80 ? 'var(--green)' : score >= 60 ? 'var(--yellow)' : 'var(--red)';
+      document.getElementById('insightsHealthMsg').textContent = health.message;
+
+      const trendIcon = health.trend === 'improving' ? '↗' : health.trend === 'degrading' ? '↘' : '→';
+      const trendColor = health.trend === 'improving' ? 'var(--green)' : health.trend === 'degrading' ? 'var(--red)' : 'var(--text-muted)';
+      document.getElementById('insightsHealthTrend').innerHTML = `Trend: <span style="color:${trendColor};font-weight:600;">${trendIcon} ${health.trend}</span> &nbsp;|&nbsp; Pass rate: <strong>${health.passRate}%</strong>`;
+
+      document.getElementById('insightsReportCount').textContent = `${data.reportsAnalyzed} reports`;
+      document.getElementById('insightsEndpointCount').textContent = `${data.endpointsTracked} endpoints`;
+      document.getElementById('insightsAssertionCount').textContent = `${data.assertionsTracked} assertions`;
+
+      // Trend chart
+      const chart = document.getElementById('insightsTrendChart');
+      if (data.runSummaries && data.runSummaries.length > 0) {
+        chart.innerHTML = data.runSummaries.map(run => {
+          const height = Math.max(4, (run.passRate / 100) * 46);
+          const color = run.passRate >= 90 ? 'var(--green)' : run.passRate >= 70 ? 'var(--yellow)' : 'var(--red)';
+          const date = run.timestamp ? new Date(run.timestamp).toLocaleDateString() : '';
+          return `<div style="flex:1;min-width:8px;max-width:24px;height:${height}px;background:${color};border-radius:2px;cursor:pointer;" title="${date}: ${Math.round(run.passRate)}% pass rate"></div>`;
+        }).join('');
+      } else {
+        chart.innerHTML = '<span style="font-size:0.72rem;color:var(--text-muted);">Not enough data for trend</span>';
+      }
+    }
+
+    function renderFlakyTests(flakyTests) {
+      const card = document.getElementById('insightsFlakyCard');
+      if (flakyTests.length === 0) {
+        card.style.display = 'block';
+        document.getElementById('insightsFlakyCount').textContent = '';
+        document.getElementById('insightsFlakyContent').innerHTML = '<div style="padding:12px;color:var(--green);font-size:0.82rem;">&#10003; No flaky tests detected — all tests are stable.</div>';
+        return;
+      }
+
+      card.style.display = 'block';
+      document.getElementById('insightsFlakyCount').textContent = `${flakyTests.length} detected`;
+
+      let html = '';
+      flakyTests.forEach(test => {
+        const severityColor = test.severity === 'high' ? 'var(--red)' : test.severity === 'medium' ? 'var(--yellow)' : 'var(--text-muted)';
+        const severityBg = test.severity === 'high' ? 'var(--red-bg)' : test.severity === 'medium' ? 'var(--yellow-bg)' : 'var(--bg-input)';
+        html += `
+          <div style="padding:12px;background:var(--bg-input);border:1px solid var(--border);border-left:3px solid ${severityColor};border-radius:var(--radius-sm);margin-bottom:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+              <span style="font-size:0.82rem;font-weight:600;color:var(--text-primary);">${escapeHtml(test.request)}</span>
+              <span class="badge" style="background:${severityBg};color:${severityColor};">${test.severity}</span>
+            </div>
+            <div style="font-size:0.72rem;color:var(--text-secondary);margin-bottom:6px;">${escapeHtml(test.assertion)}</div>
+            <div style="display:flex;gap:16px;font-size:0.7rem;color:var(--text-muted);">
+              <span>Flip rate: <strong style="color:${severityColor};">${test.flipRate}%</strong></span>
+              <span>Pass rate: <strong>${test.passRate}%</strong></span>
+              <span>Runs: ${test.totalRuns}</span>
+              <span>Last: <span class="badge badge-${test.lastResult}">${test.lastResult}</span></span>
+            </div>
+          </div>`;
+      });
+      document.getElementById('insightsFlakyContent').innerHTML = html;
+    }
+
+    function renderAnomalies(anomalies) {
+      const card = document.getElementById('insightsAnomalyCard');
+      if (anomalies.length === 0) {
+        card.style.display = 'block';
+        document.getElementById('insightsAnomalyCount').textContent = '';
+        document.getElementById('insightsAnomalyContent').innerHTML = '<div style="padding:12px;color:var(--green);font-size:0.82rem;">&#10003; All response times within normal range.</div>';
+        return;
+      }
+
+      card.style.display = 'block';
+      document.getElementById('insightsAnomalyCount').textContent = `${anomalies.length} detected`;
+
+      let html = '';
+      anomalies.forEach(a => {
+        const severityColor = a.severity === 'critical' ? 'var(--red)' : a.severity === 'high' ? 'var(--orange)' : 'var(--yellow)';
+        const barWidth = Math.min(100, (a.currentTime / (a.baseline * 3)) * 100);
+        const baselineWidth = Math.min(100, (a.baseline / (a.baseline * 3)) * 100);
+        html += `
+          <div style="padding:12px;background:var(--bg-input);border:1px solid var(--border);border-left:3px solid ${severityColor};border-radius:var(--radius-sm);margin-bottom:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <span style="font-size:0.82rem;font-weight:600;color:var(--text-primary);">${escapeHtml(a.endpoint)}</span>
+              <span style="font-size:0.72rem;font-weight:700;color:${severityColor};">+${a.percentIncrease}%</span>
+            </div>
+            <div style="margin-bottom:6px;">
+              <div style="display:flex;align-items:center;gap:8px;font-size:0.7rem;margin-bottom:3px;">
+                <span style="color:var(--text-muted);width:60px;">Baseline:</span>
+                <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+                  <div style="height:100%;width:${baselineWidth}%;background:var(--green);border-radius:3px;"></div>
+                </div>
+                <span style="color:var(--text-secondary);font-weight:600;">${a.baseline}ms</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:0.7rem;">
+                <span style="color:var(--text-muted);width:60px;">Current:</span>
+                <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+                  <div style="height:100%;width:${barWidth}%;background:${severityColor};border-radius:3px;"></div>
+                </div>
+                <span style="color:${severityColor};font-weight:600;">${a.currentTime}ms</span>
+              </div>
+            </div>
+            <div style="font-size:0.65rem;color:var(--text-muted);">Z-score: ${a.zScore} &nbsp;|&nbsp; Std dev: ${a.stddev}ms</div>
+          </div>`;
+      });
+      document.getElementById('insightsAnomalyContent').innerHTML = html;
+    }
+
+    function renderFailurePatterns(patterns, totalFailures) {
+      const card = document.getElementById('insightsFailureCard');
+      if (patterns.length === 0) {
+        card.style.display = 'block';
+        document.getElementById('insightsFailureTotal').textContent = '';
+        document.getElementById('insightsFailureContent').innerHTML = '<div style="padding:12px;color:var(--green);font-size:0.82rem;">&#10003; No failures to analyze.</div>';
+        return;
+      }
+
+      card.style.display = 'block';
+      document.getElementById('insightsFailureTotal').textContent = `${totalFailures} total failures`;
+
+      let html = '';
+      patterns.forEach(p => {
+        const color = p.category === 'auth' ? 'var(--yellow)' : p.category === 'serverError' ? 'var(--red)' : p.category === 'timeout' ? 'var(--orange)' : p.category === 'rateLimit' ? 'var(--purple)' : 'var(--blue)';
+        html += `
+          <div style="padding:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+              <span style="font-size:0.82rem;font-weight:600;color:var(--text-primary);">${p.label}</span>
+              <span style="font-size:0.82rem;font-weight:700;color:${color};">${p.percentage}%</span>
+            </div>
+            <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:8px;">
+              <div style="height:100%;width:${p.percentage}%;background:${color};border-radius:3px;transition:width 0.5s;"></div>
+            </div>
+            <div style="font-size:0.7rem;color:var(--text-muted);">${p.count} occurrence${p.count > 1 ? 's' : ''}${p.examples.length > 0 ? ' — e.g. ' + escapeHtml(p.examples[0].request) : ''}</div>
+          </div>`;
+      });
+      document.getElementById('insightsFailureContent').innerHTML = html;
+    }
+
+    function renderDegradation(degrading) {
+      const card = document.getElementById('insightsDegradationCard');
+      if (!degrading || degrading.length === 0) { card.style.display = 'none'; return; }
+      card.style.display = 'block';
+      let html = '<div style="font-size:0.74rem;color:var(--text-secondary);margin-bottom:12px;">Endpoints where response time has increased significantly over recent runs:</div>';
+      degrading.forEach(d => {
+        const color = d.severity === 'critical' ? 'var(--red)' : d.severity === 'high' ? 'var(--orange)' : 'var(--yellow)';
+        html += `
+          <div style="padding:12px;background:var(--bg-input);border:1px solid var(--border);border-left:3px solid ${color};border-radius:var(--radius-sm);margin-bottom:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <span style="font-size:0.82rem;font-weight:600;color:var(--text-primary);">${escapeHtml(d.endpoint)}</span>
+              <span style="font-size:0.76rem;font-weight:700;color:${color};">+${d.changePercent}% slower</span>
+            </div>
+            <div style="display:flex;gap:20px;font-size:0.72rem;color:var(--text-muted);">
+              <span>Before: <strong style="color:var(--green);">${d.earlierAvg}ms</strong></span>
+              <span>Now: <strong style="color:${color};">${d.recentAvg}ms</strong></span>
+              <span>Data points: ${d.dataPoints}</span>
+            </div>
+          </div>`;
+      });
+      document.getElementById('insightsDegradationContent').innerHTML = html;
+    }
+
+    function renderSlowestEndpoints(endpoints) {
+      const card = document.getElementById('insightsSlowestCard');
+      if (!endpoints || endpoints.length === 0) { card.style.display = 'none'; return; }
+      card.style.display = 'block';
+      const maxTime = endpoints[0].avgTime || 1;
+      let html = '<div style="font-size:0.74rem;color:var(--text-secondary);margin-bottom:12px;">Top 10 slowest endpoints by average response time:</div>';
+      endpoints.forEach((ep, i) => {
+        const barWidth = Math.max(5, (ep.avgTime / maxTime) * 100);
+        const color = ep.avgTime > 2000 ? 'var(--red)' : ep.avgTime > 1000 ? 'var(--orange)' : ep.avgTime > 500 ? 'var(--yellow)' : 'var(--green)';
+        html += `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;padding:6px 0;">
+            <span style="font-size:0.65rem;color:var(--text-muted);width:18px;text-align:right;">${i+1}.</span>
+            <span style="font-size:0.74rem;color:var(--text-primary);width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${ep.endpoint}">${escapeHtml(ep.endpoint)}</span>
+            <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+              <div style="height:100%;width:${barWidth}%;background:${color};border-radius:4px;"></div>
+            </div>
+            <span style="font-size:0.72rem;font-weight:600;color:${color};width:60px;text-align:right;">${ep.avgTime}ms</span>
+            <span style="font-size:0.62rem;color:var(--text-muted);width:50px;">P95: ${ep.p95}ms</span>
+          </div>`;
+      });
+      document.getElementById('insightsSlowestContent').innerHTML = html;
+    }
+
+    function renderMostFailing(requests) {
+      const card = document.getElementById('insightsFailingCard');
+      if (!requests || requests.length === 0) { card.style.display = 'none'; return; }
+      card.style.display = 'block';
+      let html = '<div style="font-size:0.74rem;color:var(--text-secondary);margin-bottom:12px;">Requests with the highest failure rates:</div>';
+      html += '<table class="data-table"><tr><th>Request</th><th>Method</th><th>Fail Rate</th><th>Failures</th><th>Total Runs</th></tr>';
+      requests.forEach(r => {
+        const color = r.failRate > 50 ? 'var(--red)' : r.failRate > 25 ? 'var(--orange)' : 'var(--yellow)';
+        html += `<tr>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(r.endpoint)}">${escapeHtml(r.name)}</td>
+          <td><span class="tree-method ${r.method}">${r.method}</span></td>
+          <td><strong style="color:${color};">${r.failRate}%</strong></td>
+          <td>${r.failures}</td>
+          <td>${r.totalRuns}</td>
+        </tr>`;
+      });
+      html += '</table>';
+      document.getElementById('insightsFailingContent').innerHTML = html;
+    }
+
+    function renderCorrelations(correlations) {
+      const card = document.getElementById('insightsCorrelationCard');
+      if (!correlations || correlations.length === 0) { card.style.display = 'none'; return; }
+      card.style.display = 'block';
+      let html = '<div style="font-size:0.74rem;color:var(--text-secondary);margin-bottom:12px;">Requests that tend to fail together (likely share a common dependency):</div>';
+      correlations.forEach(c => {
+        html += `
+          <div style="padding:10px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:0.78rem;color:var(--text-primary);flex:1;">${escapeHtml(c.request1)}</span>
+            <span style="font-size:0.7rem;color:var(--orange);font-weight:600;">&#8596; ${c.correlation}%</span>
+            <span style="font-size:0.78rem;color:var(--text-primary);flex:1;text-align:right;">${escapeHtml(c.request2)}</span>
+          </div>`;
+      });
+      html += '<div style="font-size:0.65rem;color:var(--text-muted);margin-top:6px;">Higher % = stronger correlation (fail together more often)</div>';
+      document.getElementById('insightsCorrelationContent').innerHTML = html;
+    }
+
+    function renderStatusDistribution(distribution) {
+      const card = document.getElementById('insightsStatusCard');
+      if (!distribution || distribution.length === 0) { card.style.display = 'none'; return; }
+      card.style.display = 'block';
+      const total = distribution.reduce((s, d) => s + d.count, 0);
+      let html = '<div style="display:flex;gap:4px;height:24px;border-radius:4px;overflow:hidden;margin-bottom:12px;">';
+      distribution.forEach(d => {
+        const color = d.code >= 200 && d.code < 300 ? 'var(--green)' : d.code >= 300 && d.code < 400 ? 'var(--blue)' : d.code >= 400 && d.code < 500 ? 'var(--yellow)' : d.code >= 500 ? 'var(--red)' : 'var(--text-muted)';
+        const width = Math.max(2, (d.count / total) * 100);
+        html += `<div style="width:${width}%;background:${color};" title="${d.code}: ${d.count} (${d.percentage}%)"></div>`;
+      });
+      html += '</div><div style="display:flex;flex-wrap:wrap;gap:10px;">';
+      distribution.forEach(d => {
+        const color = d.code >= 200 && d.code < 300 ? 'var(--green)' : d.code >= 300 && d.code < 400 ? 'var(--blue)' : d.code >= 400 && d.code < 500 ? 'var(--yellow)' : d.code >= 500 ? 'var(--red)' : 'var(--text-muted)';
+        html += `<div style="font-size:0.74rem;display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border-radius:2px;background:${color};"></span><strong style="color:${color};">${d.code}</strong><span style="color:var(--text-muted);">${d.count} (${d.percentage}%)</span></div>`;
+      });
+      html += '</div>';
+      document.getElementById('insightsStatusContent').innerHTML = html;
+    }
+
+    function renderRecommendations(recommendations) {
+      const card = document.getElementById('insightsRecsCard');
+      if (recommendations.length === 0) {
+        card.style.display = 'none';
+        return;
+      }
+
+      card.style.display = 'block';
+      let html = '';
+      recommendations.forEach(rec => {
+        const borderColor = rec.priority === 'high' ? 'var(--red)' : rec.priority === 'medium' ? 'var(--yellow)' : 'var(--green)';
+        html += `
+          <div style="padding:12px 14px;background:var(--bg-input);border:1px solid var(--border);border-left:3px solid ${borderColor};border-radius:var(--radius-sm);margin-bottom:8px;">
+            <div style="font-size:0.82rem;font-weight:600;color:var(--text-primary);margin-bottom:4px;">${rec.icon} ${rec.title}</div>
+            <div style="font-size:0.74rem;color:var(--text-secondary);line-height:1.5;">${rec.detail}</div>
+          </div>`;
+      });
+      document.getElementById('insightsRecsContent').innerHTML = html;
+    }
+
+    // ===== DATA FILE UPLOAD & PREVIEW =====
+    document.getElementById('dataFileUpload').addEventListener('change', async function() {
+      if (!this.files.length) return;
+      const fd = new FormData();
+      fd.append('datafile', this.files[0]);
+      const r = await fetch('/api/upload/datafile', { method: 'POST', body: fd });
+      const d = await r.json();
+      if (d.success) { loadDropdowns(); setTimeout(() => { document.getElementById('dataFileSelect').value = d.filename; loadDataFilePreview(d.filename); }, 500); }
+      this.value = '';
+    });
+
+    document.getElementById('dataFileSelect').addEventListener('change', function() {
+      if (this.value) { loadDataFilePreview(this.value); }
+      else { document.getElementById('dataFilePreview').style.display = 'none'; }
+    });
+
+    async function loadDataFilePreview(filename) {
+      const pv = document.getElementById('dataFilePreview');
+      try {
+        const data = await fetch(`/api/datafiles/preview/${encodeURIComponent(filename)}`).then(r => r.json());
+        if (data.error) { pv.style.display = 'none'; return; }
+        let html = `<div style="margin-bottom:6px;color:var(--orange);font-weight:600;">&#128196; ${filename} — ${data.totalRows} row(s), ${data.columns.length} column(s)</div>`;
+        html += `<div style="margin-bottom:4px;color:var(--text-muted);">Columns: <strong style="color:var(--text-primary);">${data.columns.join(', ')}</strong></div>`;
+        html += `<div style="margin-bottom:4px;color:var(--text-muted);">Use as: <code style="color:var(--green);">{{${data.columns[0]}}}</code>, <code style="color:var(--green);">{{${data.columns.length > 1 ? data.columns[1] : '...'}}}</code> in your requests</div>`;
+        if (data.preview.length > 0) {
+          html += '<table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:0.68rem;"><tr>' + data.columns.map(c => `<th style="padding:4px 6px;border:1px solid var(--border);background:var(--bg-body);color:var(--orange);font-weight:600;">${c}</th>`).join('') + '</tr>';
+          data.preview.forEach(row => {
+            html += '<tr>' + data.columns.map(c => `<td style="padding:4px 6px;border:1px solid var(--border);color:var(--text-secondary);">${row[c] || ''}</td>`).join('') + '</tr>';
+          });
+          html += '</table>';
+          if (data.totalRows > 5) html += `<div style="margin-top:4px;color:var(--text-muted);font-style:italic;">...and ${data.totalRows - 5} more rows</div>`;
+        }
+        pv.innerHTML = html;
+        pv.style.display = 'block';
+      } catch (e) { pv.style.display = 'none'; }
+    }
+
+    // ===== ASSERT GENERATOR =====
+    let lastGeneratedScript = '';
+
+    async function generateAssertions() {
+      const input = document.getElementById('agInput').value.trim();
+      if (!input) { alert('Paste a JSON response body'); return; }
+
+      // Validate JSON
+      try { JSON.parse(input); } catch (e) { alert('Invalid JSON: ' + e.message); return; }
+
+      document.getElementById('agStatus').textContent = 'Generating...';
+      document.getElementById('agGenerateBtn').disabled = true;
+
+      try {
+        const body = {
+          responseBody: input,
+          statusCode: document.getElementById('agStatusCode').value,
+          depth: document.getElementById('agDepth').value,
+          style: document.getElementById('agStyle').value,
+          includeSchema: document.getElementById('agSchema').checked,
+          includePerformance: document.getElementById('agPerf').checked,
+          includeNegative: document.getElementById('agNegative').checked
+        };
+
+        const resp = await fetch('/api/generate-assertions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await resp.json();
+
+        if (data.error) {
+          document.getElementById('agStatus').textContent = 'Error: ' + data.error;
+          document.getElementById('agGenerateBtn').disabled = false;
+          return;
+        }
+
+        // Store plain script for copy
+        lastGeneratedScript = data.script;
+
+        document.getElementById('agOutputCard').style.display = 'block';
+        document.getElementById('agCount').textContent = `${data.summary.total} assertions generated`;
+        document.getElementById('agStatus').textContent = `Done — ${data.summary.total} assertions`;
+
+        // Summary badges
+        const cats = data.summary.categories;
+        document.getElementById('agSummary').innerHTML = Object.entries(cats).map(([cat, count]) => {
+          const colors = { status: 'var(--green)', performance: 'var(--blue)', headers: 'var(--purple)', schema: 'var(--orange)', type: 'var(--yellow)', array: 'var(--blue)', pattern: 'var(--green)', value: 'var(--orange)', nested: 'var(--purple)', security: 'var(--red)', 'null-check': 'var(--text-muted)' };
+          const color = colors[cat] || 'var(--text-muted)';
+          return `<span style="font-size:0.68rem;padding:3px 8px;border-radius:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:${color};font-weight:600;">${cat}: ${count}</span>`;
+        }).join('');
+
+        // Display plain code (no syntax highlighting that breaks copy)
+        const escaped = data.script.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        document.getElementById('agOutput').innerHTML = escaped;
+
+      } catch (e) {
+        document.getElementById('agStatus').textContent = 'Error: ' + e.message;
+      }
+
+      document.getElementById('agGenerateBtn').disabled = false;
+    }
+
+    function copyAssertions() {
+      if (!lastGeneratedScript) return;
+      navigator.clipboard.writeText(lastGeneratedScript).then(() => {
+        const btn = document.querySelector('#agOutputCard .btn-primary');
+        btn.innerHTML = '&#10003; Copied!';
+        setTimeout(() => { btn.innerHTML = '&#128203; Copy All'; }, 2000);
+      });
+    }
 
     let knownRunStatuses={};
     async function pollRunStatus(){try{const h=await fetch('/api/history').then(r=>r.json());h.forEach(run=>{const prev=knownRunStatuses[run.id];if(prev==='running'&&run.status!=='running'){const folder=run.folder&&run.folder!=='All'?` / ${run.folder}`:'';let msg='';if(run.summary&&run.summary.totalAssertions!=null){const p=run.summary.totalAssertions-(run.summary.failedAssertions||0);msg=`${p}/${run.summary.totalAssertions} assertions passed`;if(run.summary.totalDuration)msg+=` in ${(run.summary.totalDuration/1000).toFixed(1)}s`}else if(run.summary&&run.summary.error){msg=run.summary.error}showToast(run.status,`${run.collection}${folder}`,msg,run.reportName);document.getElementById('statusBadge').textContent='\u25CF Ready';document.getElementById('statusBadge').style.background='var(--green-bg)';document.getElementById('statusBadge').style.color='var(--green)'}knownRunStatuses[run.id]=run.status})}catch(e){}}

@@ -7,9 +7,10 @@ const userDataPath = app.getPath('userData');
 const collectionsDir = path.join(userDataPath, 'collections');
 const environmentsDir = path.join(userDataPath, 'environments');
 const reportsDir = path.join(userDataPath, 'reports');
+const datafilesDir = path.join(userDataPath, 'datafiles');
 
 // Ensure writable directories exist
-[collectionsDir, environmentsDir, reportsDir].forEach(dir => {
+[collectionsDir, environmentsDir, reportsDir, datafilesDir].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
@@ -17,6 +18,7 @@ const reportsDir = path.join(userDataPath, 'reports');
 process.env.NEWMAN_COLLECTIONS_DIR = collectionsDir;
 process.env.NEWMAN_ENVIRONMENTS_DIR = environmentsDir;
 process.env.NEWMAN_REPORTS_DIR = reportsDir;
+process.env.NEWMAN_DATAFILES_DIR = datafilesDir;
 process.env.NEWMAN_PUBLIC_DIR = path.join(__dirname, 'public');
 
 // Start the Express server

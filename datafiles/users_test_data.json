@@ -1,0 +1,7 @@
+[
+  { "user_id": "1", "expected_name": "Leanne Graham", "expected_email": "Sincere@april.biz" },
+  { "user_id": "2", "expected_name": "Ervin Howell", "expected_email": "Shanna@melissa.tv" },
+  { "user_id": "3", "expected_name": "Clementine Bauch", "expected_email": "Nathan@yesenia.net" },
+  { "user_id": "4", "expected_name": "Patricia Lebsack", "expected_email": "Julianne.OConner@kory.org" },
+  { "user_id": "5", "expected_name": "Chelsey Dietrich", "expected_email": "Lucio_Hettinger@annie.me" }
+]
