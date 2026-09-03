@@ -16,7 +16,7 @@ process.stdin.on('end', () => {
   if (customHeaders && customHeaders.length > 0 || customQueryParams && customQueryParams.length > 0) {
     run.on('beforeRequest', (err, args) => {
       if (args && args.request) {
-        if (customHeaders) customHeaders.forEach(h => { args.request.headers.add({ key: h.key, value: h.value || '' }); });
+        if (customHeaders) customHeaders.forEach(h => { args.request.headers.upsert({ key: h.key, value: h.value || '' }); });
         if (customQueryParams) customQueryParams.forEach(q => { args.request.url.query.add({ key: q.key, value: q.value || '' }); });
       }
     });
